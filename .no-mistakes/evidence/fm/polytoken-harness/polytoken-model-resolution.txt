@@ -1,0 +1,11 @@
+polytoken polytoken 0.8.14
+$ fm_polytoken_model_arg polytoken ogo/glm-5.3 high -> rc=0 [ogo/glm-5.3(high)]
+$ fm_polytoken_model_arg polytoken ogo/glm-5.3\(high\) '' -> rc=0 [ogo/glm-5.3(high)]
+$ fm_polytoken_model_arg polytoken ogo/glm-5.3 medium -> rc=0 [notice: polytoken model 'ogo/glm-5.3' lists no 'medium' reasoning level; effort is recorded but not applied
+ogo/glm-5.3]
+$ fm_polytoken_model_arg polytoken ogo/glm-5.3\(medium\) '' -> rc=1 [error: polytoken model selector 'ogo/glm-5.3(medium)' is not among the variants 'polytoken models' lists for 'ogo/glm-5.3']
+$ fm_polytoken_model_arg polytoken mg:fast '' -> rc=1 [error: polytoken model 'mg:fast' is not listed by 'polytoken models'; choose a listed <provider>/<model> or omit --model]
+$ fm_polytoken_model_arg polytoken @modelgroup:x '' -> rc=1 [error: polytoken model '@modelgroup:x' is not listed by 'polytoken models'; choose a listed <provider>/<model> or omit --model]
+$ fm_polytoken_model_arg polytoken nonexistent/model '' -> rc=1 [error: polytoken model 'nonexistent/model' is not listed by 'polytoken models'; choose a listed <provider>/<model> or omit --model]
+$ fm_polytoken_model_arg polytoken codex/gpt-6-luna ultra -> rc=1 [error: polytoken has no native ultra effort; choose low, medium, high, xhigh, or max]
+$ fm_polytoken_model_arg polytoken '' '' -> rc=0 []
