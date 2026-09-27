@@ -1,0 +1,23 @@
+=== Phase A: recorded terminal term_547211c0-cc6a-42b5-b83d-35a30716bf1b holds a live codex agent ===
+agent_state=alive
+
+--- fm-spawn.sh orca-lab-recovery --relaunch --harness codex ---
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ
+error: task orca-lab-recovery's Orca endpoint reads 'alive'; a relaunch requires a fully stopped old terminal, and close the old Orca terminal itself (not just the agent inside it) so Orca records a full terminal exit, then retry; Firstmate never closes a live terminal for you
+rc=1
+
+--- fm-control.sh orca-lab-recovery relaunch --harness codex --note ... ---
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ
+error: task orca-lab-recovery has a live Orca agent and no lifecycle input was sent; recovery requires a fully stopped old terminal, so close the old Orca terminal itself (not just the agent inside it) so Orca records a full terminal exit, then retry; Firstmate never closes a live terminal for you
+error: relaunch of orca-lab-recovery failed while stopping the old agent, which is still running; its original instructions were restored
+rc=1
+
+--- fm-control.sh orca-lab-recovery exit ---
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ
+error: task orca-lab-recovery has a live Orca agent and no lifecycle input was sent; recovery requires a fully stopped old terminal, so close the old Orca terminal itself (not just the agent inside it) so Orca records a full terminal exit, then retry; Firstmate never closes a live terminal for you
+rc=1
+
+meta byte-identical: yes
+brief byte-identical: yes
+terminals in lab worktree before=3 after=3
+old agent_state after refusals=alive

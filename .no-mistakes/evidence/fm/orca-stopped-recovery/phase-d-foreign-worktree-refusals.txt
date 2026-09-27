@@ -1,0 +1,16 @@
+=== Phase D: a fully stopped terminal whose Orca worktree is NOT the recorded worktree ===
+closed term_7c431ae0-81ba-411e-85c5-7ca3ce880e83 rc=0
+agent_state of closed shell=missing  absence_verdict=gone|
+recorded worktree=/Users/wire2k/.no-mistakes/worktrees/531214784cc3/01M3GAR2H74MQ9SQK9JX7WSTPH (the gate worktree, a real git worktree root, not the terminal's Orca worktree /Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51)
+
+--- fm-spawn.sh orca-lab-recovery --relaunch --harness codex ---
+error: the recorded Orca terminal does not prove ownership of task orca-lab-recovery's recorded worktree; preserving the task
+rc=1
+
+--- fm-control.sh orca-lab-recovery relaunch --harness codex --note ... ---
+error: task orca-lab-recovery's Orca terminal does not prove ownership of its recorded worktree; refusing to relaunch
+rc=1
+
+meta byte-identical: yes
+brief byte-identical: yes
+terminals in lab worktree: 2
