@@ -1,0 +1,63 @@
+=== Phase E: operator closes the old terminal, then Firstmate recovers the task onto Codex ===
+recorded: terminal=term_547211c0-cc6a-42b5-b83d-35a30716bf1b harness=claude worktree=/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51
+lab worktree HEAD=30ef650d7ee93cbaaf2ce63c6cac9b1a7890d81e  status: ?? lab-preserved.txt
+
+--- before close: orca terminal show (connected/writable) ---
+{"handle":"term_547211c0-cc6a-42b5-b83d-35a30716bf1b","connected":true,"writable":true,"orphaned":false,"incarnationId":"0a0e033f-e702-4cea-a3f8-b546b64fe532","worktreePath":"/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51"}
+agent_state=alive
+
+--- operator step: orca terminal close --terminal term_547211c0-cc6a-42b5-b83d-35a30716bf1b ---
+{  "id": "781c568d-d94d-49d3-8d85-90be71949e40",  "ok": true,  "result": {    "close": {      "handle": "term_547211c0-cc6a-42b5-b83d-35a30716bf1b",      "tabId": "ceffab35-2bfc-4a99-bb2f-caf1eaa70636
+
+--- after close: orca terminal show ---
+{"handle":"term_547211c0-cc6a-42b5-b83d-35a30716bf1b","connected":false,"writable":false,"orphaned":true,"exitCause":{"kind":"operator_close"},"incarnationId":"0a0e033f-e702-4cea-a3f8-b546b64fe532","worktreePath":"/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51"}
+agent_state=missing
+absence_verdict=gone|
+terminals in lab worktree before relaunch: 1
+
+--- fm-control.sh orca-lab-recovery relaunch --harness codex --note ... ---
+relaunched orca-lab-recovery harness=codex from=claude model=default effort=default backend=orca endpoint=term_e7957010-9678-42f4-b3a7-0ca888eac18f worktree=/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51
+rc=0  elapsed=7s
+
+--- durable record after relaunch ---
+terminal: term_547211c0-cc6a-42b5-b83d-35a30716bf1b -> term_e7957010-9678-42f4-b3a7-0ca888eac18f
+harness=codex kind=scout worktree=/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51
+orca_worktree_id=7fef2725-15e6-4578-b39e-c6027791b74e::/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51
+journal phases: phase=complete 
+terminals in lab worktree after relaunch: 2
+
+--- waiting for the Codex replacement to execute its brief ---
+replacement-ran marker written after 12s: replacement-ran
+new terminal agent_state=alive
+
+--- new terminal tail ---
+  Then reply 'probe complete' and stop.
+  # Task
+  ## Captain's intent
+  Verify stopped-worker replacement with Codex after the Anthropic-backed worker stopped.
+  ## Firstmate spec
+  Execute only the marker command above.
+  ## Progress note (2026-09-27T02:51:35Z)
+  This task was relaunched. Continue from here; the local copy and every
+  uncommitted change are exactly as the previous worker left them.
+  First, check your instruction inbox: list /var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ/state/orca-
+  lab-recovery.inbox/*.msg, act on
+  each message in numeric order, then mv each handled file into
+  /var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ/state/orca-lab-recovery.inbox/handled/. A steer sent
+  before the relaunch survives there.
+  The Anthropic-backed worker hit a quota limit and its terminal was closed. Resume on Codex; execute only the smoke
+  marker command.
+• I’ll check the task inbox, then run the smoke marker command.
+• Ran for f in /var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ/state/orca-lab-recovery.inbox/*.msg(Nn);…
+  └ (no output)
+    + Show details
+• Ran printf 'replacement-ran\n' > '/var/folders/9r/q38jyzfj091dx86qv8prs_300000gn/T//fm-lab.xkKRvZ/replacement-ran'
+  └ (no output)
+• probe complete
+› Ask Codex to do anything
+  GPT-6-Astra default · ~/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51 · Review worker role contract
+  ? for shortcuts                                                                              ⚠ 1 warning · f2 to view
+--- preservation ---
+HEAD unchanged: yes
+uncommitted file intact: yes
+git status now: ?? lab-preserved.txt 

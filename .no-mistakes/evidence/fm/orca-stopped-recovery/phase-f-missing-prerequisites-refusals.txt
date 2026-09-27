@@ -1,0 +1,25 @@
+=== Phase F: same live runtime, but the orca CLI on PATH sits where no bundled RuntimeClient exists (install without probe prerequisites) ===
+recorded terminal=term_e7957010-9678-42f4-b3a7-0ca888eac18f (live codex)  real-CLI agent_state=alive
+wrapper-CLI agent_state=unverified
+wrapper-CLI probe raw: unverified
+
+--- fm-control.sh orca-lab-recovery exit ---
+error: task orca-lab-recovery's Orca endpoint reads 'unverified' rather than a positively classified state, and no lifecycle command was sent; this Orca install lacks the recovery probe prerequisites (a local runtime at 1.4.212 or newer with its bundled runtime client), so no reading here can prove the old agent stopped
+rc=1
+
+--- fm-control.sh orca-lab-recovery relaunch --harness codex --note ... ---
+error: task orca-lab-recovery's Orca endpoint reads 'unverified' rather than a positively classified state, and no lifecycle command was sent; this Orca install lacks the recovery probe prerequisites (a local runtime at 1.4.212 or newer with its bundled runtime client), so no reading here can prove the old agent stopped
+error: relaunch of orca-lab-recovery failed while stopping the old agent and its state is 'unverified', so it was not proven stopped; its original instructions were restored and the durable record was retained for recovery
+rc=1
+
+--- fm-spawn.sh orca-lab-recovery --relaunch --harness codex ---
+error: task orca-lab-recovery's Orca endpoint reads 'unverified'; a relaunch requires a fully stopped old terminal, and this Orca install lacks the recovery probe prerequisites (a local runtime at 1.4.212 or newer with its bundled runtime client), so no reading here can prove the old agent stopped
+rc=1
+
+--- fm-control.sh orca-lab-recovery interrupt (legacy endpoint-proof path) ---
+error: harness codex interrupts with Escape, which the orca backend cannot deliver; refusing to send a different key
+rc=1
+
+meta byte-identical: yes
+terminals in lab worktree: 2
+new terminal agent_state (real CLI) after Phase F=alive

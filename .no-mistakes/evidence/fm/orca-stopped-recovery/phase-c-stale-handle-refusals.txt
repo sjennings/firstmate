@@ -1,0 +1,15 @@
+=== Phase C: recorded terminal term_00000000-0000-4000-8000-00000000dead is a handle Orca no longer resolves ===
+agent_state=unreadable
+orca terminal show: {  "id": "898d03e3-0332-46cc-8472-f9328ef14c31",  "ok": false,  "error": {    "code": "terminal_handle_stale",    "message": "terminal_handle_stale"  },  "_meta": {    "runtimeId": "0a92a49f-f481-4895-8723-b81adf1d80ef"  }}
+
+--- fm-spawn.sh orca-lab-recovery --relaunch --harness codex ---
+error: task orca-lab-recovery's Orca endpoint reads 'unreadable'; a relaunch requires a fully stopped old terminal, and the recorded terminal has no fresh, local, incarnation-bound reading; a handle Orca no longer resolves cannot be recovered through relaunch
+rc=1
+
+--- fm-control.sh orca-lab-recovery relaunch --harness codex --note ... ---
+error: task orca-lab-recovery's Orca endpoint reads 'unreadable' and no lifecycle command was sent; the recorded terminal has no fresh, local, incarnation-bound reading; a handle Orca no longer resolves cannot be recovered through relaunch
+rc=1
+
+meta byte-identical: yes
+brief byte-identical: yes
+terminals in lab worktree: 3

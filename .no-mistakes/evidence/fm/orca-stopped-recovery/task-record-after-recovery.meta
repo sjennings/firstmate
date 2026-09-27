@@ -1,0 +1,14 @@
+window=fm-orca-lab-recovery
+endpoint_task_id=orca-lab-recovery
+worktree=/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51
+project=/Users/wire2k/Projects/firstmate
+harness=codex
+kind=scout
+tasktmp=/tmp/fm-orca-lab-recovery
+model=default
+effort=default
+spawn_gen=s1790477497.59219.23966
+backend=orca
+orca_worktree_id=7fef2725-15e6-4578-b39e-c6027791b74e::/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51
+terminal=term_e7957010-9678-42f4-b3a7-0ca888eac18f
+control_relaunch_tx=59041.20260927T025135Z.25144

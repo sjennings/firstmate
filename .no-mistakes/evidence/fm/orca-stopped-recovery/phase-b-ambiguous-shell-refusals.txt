@@ -1,0 +1,15 @@
+=== Phase B: recorded terminal term_7c431ae0-81ba-411e-85c5-7ca3ce880e83 is a connected plain shell (agent quit, terminal not closed) ===
+agent_state=ambiguous
+
+--- fm-spawn.sh orca-lab-recovery --relaunch --harness codex ---
+error: task orca-lab-recovery's Orca endpoint reads 'ambiguous'; a relaunch requires a fully stopped old terminal, and close the old Orca terminal itself (not just the agent inside it) so Orca records a full terminal exit, then retry; Firstmate never closes a live terminal for you
+rc=1
+
+--- fm-control.sh orca-lab-recovery relaunch --harness codex --note ... ---
+error: task orca-lab-recovery's Orca endpoint reads 'ambiguous' rather than a positively classified state, and no lifecycle command was sent; close the old Orca terminal itself (not just the agent inside it) so Orca records a full terminal exit, then retry; Firstmate never closes a live terminal for you
+error: relaunch of orca-lab-recovery failed while stopping the old agent and its state is 'ambiguous', so it was not proven stopped; its original instructions were restored and the durable record was retained for recovery
+rc=1
+
+meta byte-identical: yes
+brief byte-identical: yes
+terminals in lab worktree: 3

@@ -1,0 +1,32 @@
+{
+  "id": "d4e40b71-274c-4435-bdae-abdf33049594",
+  "ok": true,
+  "result": {
+    "terminal": {
+      "handle": "term_547211c0-cc6a-42b5-b83d-35a30716bf1b",
+      "ptyId": "7fef2725-15e6-4578-b39e-c6027791b74e::/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51@@708ce278",
+      "incarnationId": "0a0e033f-e702-4cea-a3f8-b546b64fe532",
+      "orphaned": true,
+      "worktreeId": "7fef2725-15e6-4578-b39e-c6027791b74e::/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51",
+      "worktreePath": "/Users/wire2k/orca/workspaces/firstmate/fm-lab-orca-recovery-d48b2a51",
+      "branch": "refs/heads/sjennings/fm-lab-orca-recovery-d48b2a51",
+      "tabId": "ceffab35-2bfc-4a99-bb2f-caf1eaa70636",
+      "leafId": "b4756ea7-42e3-4bc2-b51a-f7723b6847e7",
+      "title": "..very-d48b2a51",
+      "connected": false,
+      "writable": false,
+      "lastOutputAt": 1790477490564,
+      "preview": " for shortcuts⚠ 1 warning · f2 to view╭[1]    6794 terminated  codex --dangerously-bypass-approvals-and-sandbox --disable hooks\n   ~/o/w/f/fm-lab-orca-recovery-d48b2a51  on   sjennings/fm…ery-d48b2a51 ?1                                                          TERM ✘  took 4m 28s   base ",
+      "exitCause": {
+        "kind": "operator_close"
+      },
+      "executionHostId": "local",
+      "agentIdentity": "codex",
+      "paneRuntimeId": -1,
+      "rendererGraphEpoch": 0
+    }
+  },
+  "_meta": {
+    "runtimeId": "0a92a49f-f481-4895-8723-b81adf1d80ef"
+  }
+}
