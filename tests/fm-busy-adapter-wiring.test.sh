@@ -24,6 +24,15 @@ make_spawn_case() {  # <name> <harness> <id>
   proj="$case_dir/project"
   wt="$case_dir/wt"
   fakebin=$(make_spawn_fakebin "$case_dir/fake" pi opencode claude codex gemini)
+  # fm-spawn probes `opencode --version` to pick the plugin's export shape, so
+  # the stub answers from FM_TEST_OPENCODE_VERSION and fails the probe when it
+  # is unset, never deferring to the developer's installed OpenCode.
+  cat >"$fakebin/opencode" <<'EOF'
+#!/bin/sh
+[ "${1:-}" = --version ] || exit 0
+[ -n "${FM_TEST_OPENCODE_VERSION:-}" ] || exit 1
+printf '%s\n' "$FM_TEST_OPENCODE_VERSION"
+EOF
   fm_test_spawn_home "$home" "$harness"
   fm_git_worktree "$proj" "$wt" "wt-$name"
   fm_test_spawn_brief "$home" "$id"
@@ -156,17 +165,23 @@ test_pi_extension_stale_incarnation_rejected() {
 }
 
 # drive_oc_plugin <plugin-path> <events-json-lines...>: load the generated
-# OpenCode plugin in a plain Node host and feed it one event per argument, in
-# order, through the same hooks.event entry OpenCode calls.
+# OpenCode plugin the way the v1 loader does - every module export is called as
+# a plugin function, so a non-function export is a load failure - and feed it
+# one event per argument, in order, through the same hooks.event entry OpenCode
+# calls.
 drive_oc_plugin() {
   local plugin=$1
   shift
   PLUGIN_PATH="$plugin" node --input-type=module - "$@" 2>&1 <<'EOF'
 import { pathToFileURL } from "node:url";
 const mod = await import(pathToFileURL(process.env.PLUGIN_PATH).href);
-const hooks = await mod.FmBusyState({});
+const hooks = [];
+for (const [name, fn] of Object.entries(mod)) {
+  if (typeof fn !== "function") throw new Error(`Plugin export is not a function: ${name}`);
+  hooks.push(await fn({}));
+}
 for (const arg of process.argv.slice(2)) {
-  await hooks.event({ event: JSON.parse(arg) });
+  for (const hook of hooks) await hook.event?.({ event: JSON.parse(arg) });
 }
 EOF
 }
@@ -183,7 +198,7 @@ test_opencode_plugin_semantic_lifecycle() {
   local rec id=busy-oc-1 out state plugin
   rec=$(make_spawn_case oc-lifecycle opencode "$id")
   read_case_record "$rec"
-  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  out=$(FM_TEST_OPENCODE_VERSION=1.18.4 run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
   expect_code 0 $? "opencode spawn should succeed: $out"
   state="$HOME_DIR/state"
   plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
@@ -225,6 +240,27 @@ test_opencode_plugin_semantic_lifecycle() {
   out=$(classify opencode "$id" "$state")
   [ "$out" = "busy opencode-plugin" ] || fail "another session's idle must not clear the latched busy, got '$out'"
   pass "opencode plugin classifies from session.status, scoped to the latched worker session"
+}
+
+# A probe that cannot name the OpenCode major must still yield a plugin the v1
+# loader can load, because a mistaken v2 shape silently costs a 1.x worker its
+# semantic busy state.
+test_opencode_plugin_unknown_version_stays_v1_loadable() {
+  local rec id out state plugin version
+  for version in "" "dev build"; do
+    id=busy-oc-probe-${#version}
+    rec=$(make_spawn_case "oc-probe-${#version}" opencode "$id")
+    read_case_record "$rec"
+    out=$(FM_TEST_OPENCODE_VERSION=$version run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+    expect_code 0 $? "opencode spawn should succeed: $out"
+    state="$HOME_DIR/state"
+    plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
+    out=$(drive_oc_plugin "$plugin" "$(oc_status ses_main busy)") \
+      || fail "probe '$version' must yield a v1-loadable plugin: $out"
+    out=$(classify opencode "$id" "$state")
+    [ "$out" = "busy opencode-plugin" ] || fail "probe '$version' plugin must classify busy, got '$out'"
+  done
+  pass "a failing or unparseable opencode version probe still writes the v1-loadable plugin"
 }
 
 # drive_oc_plugin_v2 <plugin-path> <events-json-lines...>: load the generated
@@ -278,7 +314,7 @@ test_opencode_v2_plugin_semantic_lifecycle() {
   local rec id=busy-oc-v2 out state plugin terminal
   rec=$(make_spawn_case oc-v2-lifecycle opencode "$id")
   read_case_record "$rec"
-  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  out=$(FM_TEST_OPENCODE_VERSION="opencode v2.0.24" run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
   expect_code 0 $? "opencode spawn should succeed: $out"
   state="$HOME_DIR/state"
   plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
@@ -330,7 +366,7 @@ test_opencode_v2_plugin_reports_a_lost_subscription() {
   local rec id=busy-oc-v2-drop out state plugin
   rec=$(make_spawn_case oc-v2-drop opencode "$id")
   read_case_record "$rec"
-  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  out=$(FM_TEST_OPENCODE_VERSION="opencode v2.0.24" run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
   expect_code 0 $? "opencode spawn should succeed: $out"
   state="$HOME_DIR/state"
   plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
@@ -350,7 +386,7 @@ test_opencode_v2_plugin_is_the_loader_entry_point() {
   local rec id=busy-oc-v2-entry out state plugin
   rec=$(make_spawn_case oc-v2-entry opencode "$id")
   read_case_record "$rec"
-  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  out=$(FM_TEST_OPENCODE_VERSION="opencode v2.0.24" run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
   expect_code 0 $? "opencode spawn should succeed: $out"
   state="$HOME_DIR/state"
   plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
@@ -572,6 +608,7 @@ test_pi_extension_serializes_settle_before_next_start
 test_pi_extension_stale_incarnation_rejected
 test_kimi_and_grok_install_no_unverified_wiring
 test_opencode_plugin_semantic_lifecycle
+test_opencode_plugin_unknown_version_stays_v1_loadable
 test_opencode_v2_plugin_semantic_lifecycle
 test_opencode_v2_plugin_is_the_loader_entry_point
 test_opencode_v2_plugin_reports_a_lost_subscription

@@ -4718,6 +4718,12 @@ EOF
     ;;
   opencode*)
     mkdir -p "$WT/.opencode/plugins"
+    # The export shape follows the OpenCode major about to launch: the v2 loader
+    # (verified on 2.0.24) calls only the default export's setup, while a v1
+    # loader calls every export as a plugin function, so an object default
+    # export fails to load there. An absent, failing, or unparseable probe gets
+    # the v1 shape, the one a worker can always load.
+    opencode_major=$(opencode --version 2>/dev/null | sed -n '1s/^[^0-9]*\([0-9][0-9]*\)\..*/\1/p')
     cat >"$WT/.opencode/plugins/fm-busy-state.js" <<EOF
 // Firstmate semantic busy-state events + turn-end notification; written by
 // fm-spawn under the contract owned by bin/fm-busy-lib.sh.
@@ -4728,13 +4734,6 @@ EOF
 // sessions' status until the latched session settles, so a child's idle can
 // never clear the worker's busy state. The session.idle touch stays the
 // watcher's wake NOTIFICATION, never current-state truth.
-// This file serves both plugin contracts. The v2 loader (verified on OpenCode
-// 2.0.24) never calls the v1 named function: it loads the module and calls the
-// default export's setup with a plugin context, so a v1-only export installs no
-// hook at all and the worker silently falls back to pane heuristics. The
-// default export below maps the v2 event surface onto the same v1 hooks, and is
-// inlined rather than imported because this file is written into an arbitrary
-// project's worktree, which carries none of firstmate's own plugin libraries.
 import { execFile } from "node:child_process";
 const busyEvent = (state, event) =>
   new Promise((resolve) => {
@@ -4773,6 +4772,16 @@ export const FmBusyState = async () => {
     },
   };
 };
+EOF
+    if [ "${opencode_major:-0}" -ge 2 ]; then
+      cat >>"$WT/.opencode/plugins/fm-busy-state.js" <<'EOF'
+// The v2 loader never calls the v1 named function: it loads the module and
+// calls the default export's setup with a plugin context, so a v1-only export
+// installs no hook at all and the worker silently falls back to pane
+// heuristics. The default export below maps the v2 event surface onto the same
+// v1 hooks, and is inlined rather than imported because this file is written
+// into an arbitrary project's worktree, which carries none of firstmate's own
+// plugin libraries.
 // v2 carries its payload under "data" rather than "properties", and publishes
 // neither session.status nor session.idle: a turn opens with
 // session.execution.started and closes with a terminal session.execution.* event.
@@ -4818,6 +4827,7 @@ export default {
   },
 };
 EOF
+    fi
     exclude_path '.opencode/plugins/fm-busy-state.js'
     ;;
   pi | pi-signed)

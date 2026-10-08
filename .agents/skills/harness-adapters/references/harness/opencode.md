@@ -47,8 +47,10 @@ The PreToolUse-equivalent watcher-arm seatbelt blocks by throwing from `tool.exe
 ## Worker busy-state plugin
 
 `../../../bin/fm-spawn.sh` writes the per-worker `.opencode/plugins/fm-busy-state.js`, whose `opencode-plugin` busy state supervision reads; the semantic contract is owned by [`fm-busy-lib.sh`](../../../../../bin/fm-busy-lib.sh).
-It serves both plugin contracts from one file, because OpenCode 2.x's loader never calls the v1 named function.
-It loads the module and calls the default export's `setup(ctx)`, so a file exporting only the v1 named function installs no hook at all and the worker silently loses its semantic busy state and falls back to pane heuristics.
+Its export shape follows the OpenCode major that `opencode --version` reports at spawn, because the two loaders cannot share one shape.
+On 2.x it carries the v1 named function plus an object default export, because OpenCode 2.x's loader never calls the v1 named function.
+On 1.x, or when the probe fails or prints no parseable version, it carries only the v1 named function, because a 1.x loader calls every module export as a plugin function and fails on an object default export.
+The 2.x loader loads the module and calls the default export's `setup(ctx)`, so a file exporting only the v1 named function installs no hook at all and the worker silently loses its semantic busy state and falls back to pane heuristics.
 Verified live on 2026-10-08 using 2.0.24: a v1-only copy was loaded with its module body evaluated and neither hook installed.
 
 The v2 event surface differs in kind, not only in shape.
@@ -59,4 +61,4 @@ An in-turn provider retry needs no event of its own: the session stays latched b
 
 The generated file must be self-contained, because fm-spawn writes it into an arbitrary project's worktree, which carries none of firstmate's own plugin code.
 The stream stays open for the plugin's lifetime and the returned teardown aborts it; an unexpected stop would freeze the busy record silently, so it is reported on stderr instead.
-Regression coverage is `../../../tests/fm-busy-adapter-wiring.test.sh`, which drives the default export the way the v2 loader does, over a real async event stream.
+Regression coverage is `../../../tests/fm-busy-adapter-wiring.test.sh`, which drives the 2.x shape's default export the way the v2 loader does, over a real async event stream, and loads the 1.x and unknown-version shapes the way the v1 loader does.
