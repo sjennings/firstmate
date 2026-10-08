@@ -2257,6 +2257,44 @@ EOF
   pass "a failed read on a non-markdown home never renders its stale markdown backlog"
 }
 
+# tasks-axi 0.2.6 on a Beads home whose `bd` binary is missing prints its error
+# and then never exits. One wedged read must not consume the digest's whole
+# runtime budget: it is bounded, and the home degrades to live backlog
+# unavailable with its stale markdown rows still unrendered.
+test_backlog_compact_hung_non_markdown_read_is_bounded() {
+  local rec root home fakebin out backlog_section started elapsed
+  rec=$(new_world backlog-compact-beads-hung)
+  IFS='|' read -r root home fakebin <<EOF
+$rec
+EOF
+  make_fake_toolchain "$fakebin"
+  make_fake_ps_claude "$fakebin"
+  printf 'backend = "beads"\n\n[beads]\nbinary = "bd"\npath = "data/beads/.beads"\nprefix = "fm"\n' \
+    > "$home/.tasks.toml"
+  printf '# Backlog\n\n## In flight\n\n- [ ] stale-inflight - STALE-INFLIGHT-ROW\n' > "$home/data/backlog.md"
+  make_failing_tasks_axi "$fakebin"
+  # Same probe answers, but every real read reports and then wedges.
+  sed -i.bak 's/^exit 3$/sleep 60/' "$fakebin/tasks-axi" && rm -f "$fakebin/tasks-axi.bak"
+
+  started=$(date +%s)
+  out=$(FM_SESSION_START_BACKLOG_TIMEOUT=2 FM_SESSION_START_TIMEOUT=30 \
+    run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+  elapsed=$(( $(date +%s) - started ))
+
+  assert_contains "$out" "The digest above is complete for this session start." \
+    "a wedged backlog read consumed the digest's whole runtime budget"
+  [ "$elapsed" -lt 20 ] || fail "a wedged backlog read stalled session start for ${elapsed}s"
+  backlog_section=$(printf '%s\n' "$out" | sed -n '/^data\/backlog.md$/,/^Work under way/p')
+  assert_contains "$backlog_section" "tasks-axi compact listing failed; live backlog unavailable." \
+    "a wedged non-markdown read did not degrade to live backlog unavailable"
+  assert_contains "$backlog_section" "exceeded its 2s backlog read bound" \
+    "a wedged non-markdown read did not name the bound it exceeded"
+  assert_not_contains "$backlog_section" "STALE-INFLIGHT-ROW" \
+    "a wedged non-markdown read rendered the stale markdown backlog as the fleet view"
+
+  pass "a wedged read on a non-markdown home is bounded and never renders its stale markdown backlog"
+}
+
 # The bound may only ever cut the dispatchable-now listing, and whatever it cuts
 # must be disclosed with an exact count and the command that shows the rest.
 test_backlog_queued_bound_discloses_its_remainder() {
@@ -3269,6 +3307,7 @@ test_backlog_compact_tasks_axi_omits_bodies_and_keeps_metadata
 test_backlog_compact_lists_a_non_markdown_backend_without_the_markdown_file
 test_backlog_compact_fallback_reports_a_missing_markdown_file_plainly
 test_backlog_compact_failed_non_markdown_read_never_renders_a_stale_markdown_file
+test_backlog_compact_hung_non_markdown_read_is_bounded
 test_backlog_queued_bound_discloses_its_remainder
 test_backlog_compact_manual_backend_skips_indented_bodies
 test_backlog_compact_tasks_axi_unavailable_uses_manual_fallback

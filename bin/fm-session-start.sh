@@ -400,6 +400,11 @@ case "$QUEUED_LIMIT" in ''|*[!0-9]*|0) QUEUED_LIMIT=20 ;; esac
 ENDPOINT_TIMEOUT=${FM_SESSION_START_ENDPOINT_TIMEOUT:-10}
 case "$ENDPOINT_TIMEOUT" in ''|*[!0-9]*) ENDPOINT_TIMEOUT=10 ;; esac
 [ "$ENDPOINT_TIMEOUT" -gt 0 ] 2>/dev/null || ENDPOINT_TIMEOUT=10
+# One backlog group read may never outlive this bound either: tasks-axi on a
+# Beads home whose bd binary is missing reports that and then never exits.
+BACKLOG_READ_TIMEOUT=${FM_SESSION_START_BACKLOG_TIMEOUT:-10}
+case "$BACKLOG_READ_TIMEOUT" in ''|*[!0-9]*) BACKLOG_READ_TIMEOUT=10 ;; esac
+[ "$BACKLOG_READ_TIMEOUT" -gt 0 ] 2>/dev/null || BACKLOG_READ_TIMEOUT=10
 BACKLOG_FIELDS=blocked_by,hold_kind,hold_reason
 
 RULE='================================================================================'
@@ -535,15 +540,29 @@ print_ready_queued_bounded() {
 # a markdown file that carries no live rows - reporting zero in-flight work
 # while workers ran. The wrapper also decodes stored captain-hold reasons on
 # `list`, so this section must not decode a second time.
+# One bounded bin/fm-tasks-axi.sh read, stdout and stderr together. Whatever a
+# timed-out read managed to emit is incomplete, so the bound speaks for it.
+backlog_read() {
+  local out status
+  out=$(fm_run_timed "$BACKLOG_READ_TIMEOUT" "$SCRIPT_DIR/fm-tasks-axi.sh" "$@" 2>&1)
+  status=$?
+  if [ "$status" -eq 124 ]; then
+    printf 'tasks-axi %s exceeded its %ss backlog read bound\n' "$1" "$BACKLOG_READ_TIMEOUT"
+  else
+    printf '%s\n' "$out"
+  fi
+  return "$status"
+}
+
 print_backlog_tasks_axi_compact() {
   local path=$1 in_flight held blocked ready err
-  if ! in_flight=$("$SCRIPT_DIR/fm-tasks-axi.sh" list --state in_flight --fields "$BACKLOG_FIELDS" 2>&1); then
+  if ! in_flight=$(backlog_read list --state in_flight --fields "$BACKLOG_FIELDS" 2>&1); then
     err=$in_flight
-  elif ! held=$("$SCRIPT_DIR/fm-tasks-axi.sh" list --state held --fields "$BACKLOG_FIELDS" 2>&1); then
+  elif ! held=$(backlog_read list --state held --fields "$BACKLOG_FIELDS" 2>&1); then
     err=$held
-  elif ! blocked=$("$SCRIPT_DIR/fm-tasks-axi.sh" list --state queued --blocked --fields "$BACKLOG_FIELDS" 2>&1); then
+  elif ! blocked=$(backlog_read list --state queued --blocked --fields "$BACKLOG_FIELDS" 2>&1); then
     err=$blocked
-  elif ! ready=$("$SCRIPT_DIR/fm-tasks-axi.sh" ready 2>&1); then
+  elif ! ready=$(backlog_read ready 2>&1); then
     err=$ready
   else
     printf 'compact backlog listing (tasks-axi; done rows omitted; every in-flight, held, and blocked row shown in full; ready queued bounded to %s; task bodies omitted)\n' \
