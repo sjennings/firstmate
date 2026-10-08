@@ -4728,6 +4728,13 @@ EOF
 // sessions' status until the latched session settles, so a child's idle can
 // never clear the worker's busy state. The session.idle touch stays the
 // watcher's wake NOTIFICATION, never current-state truth.
+// This file serves both plugin contracts. The v2 loader (verified on OpenCode
+// 2.0.24) never calls the v1 named function: it loads the module and calls the
+// default export's setup with a plugin context, so a v1-only export installs no
+// hook at all and the worker silently falls back to pane heuristics. The
+// default export below maps the v2 event surface onto the same v1 hooks, and is
+// inlined rather than imported because this file is written into an arbitrary
+// project's worktree, which carries none of firstmate's own plugin libraries.
 import { execFile } from "node:child_process";
 const busyEvent = (state, event) =>
   new Promise((resolve) => {
@@ -4765,6 +4772,50 @@ export const FmBusyState = async () => {
       }
     },
   };
+};
+// v2 carries its payload under "data" rather than "properties", and publishes
+// neither session.status nor session.idle: a turn opens with
+// session.execution.started and closes with a terminal session.execution.* event.
+// Replaying those onto the v1 shapes above keeps one implementation of the
+// latching and busy/idle semantics instead of two that can drift. An in-turn
+// provider retry needs no event of its own: the session stays latched busy
+// because no terminal execution event has fired yet.
+const V2_TURN_END = new Set([
+  "session.execution.succeeded",
+  "session.execution.failed",
+  "session.execution.interrupted",
+]);
+export default {
+  id: "fm-busy-state",
+  async setup(ctx) {
+    const hooks = await FmBusyState();
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
+          const properties = { sessionID: event.data && event.data.sessionID };
+          if (event.type === "session.execution.started") {
+            await hooks.event({
+              event: { type: "session.status", properties: { ...properties, status: { type: "busy" } } },
+            });
+            continue;
+          }
+          if (!V2_TURN_END.has(event.type)) continue;
+          await hooks.event({ event: { type: "session.idle", properties } });
+        }
+        // The stream stays open for the plugin's lifetime; an unexpected stop
+        // would leave the busy record silently frozen, so report it instead.
+        if (!controller.signal.aborted) {
+          console.error("[fm-busy-state] OpenCode v2 event subscription ended unexpectedly");
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("[fm-busy-state] OpenCode v2 event subscription failed: " + error);
+        }
+      }
+    })();
+    return () => controller.abort();
+  },
 };
 EOF
     exclude_path '.opencode/plugins/fm-busy-state.js'

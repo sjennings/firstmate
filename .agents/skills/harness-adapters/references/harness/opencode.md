@@ -43,3 +43,20 @@ On native Windows, the operational-input adapter runs its Bash helper through `b
 
 The companion `.opencode/plugins/fm-primary-watch-arm.js` owns normal TUI watcher supervision, wakes it with `client.session.promptAsync`, and coordinates with the guard before a blind-turn follow-up.
 The PreToolUse-equivalent watcher-arm seatbelt blocks by throwing from `tool.execute.before`.
+
+## Worker busy-state plugin
+
+`../../../bin/fm-spawn.sh` writes the per-worker `.opencode/plugins/fm-busy-state.js`, whose `opencode-plugin` busy state supervision reads; the semantic contract is owned by [`fm-busy-lib.sh`](../../../../../bin/fm-busy-lib.sh).
+It serves both plugin contracts from one file, because OpenCode 2.x's loader never calls the v1 named function.
+It loads the module and calls the default export's `setup(ctx)`, so a file exporting only the v1 named function installs no hook at all and the worker silently loses its semantic busy state and falls back to pane heuristics.
+Verified live on 2026-10-08 using 2.0.24: a v1-only copy was loaded with its module body evaluated and neither hook installed.
+
+The v2 event surface differs in kind, not only in shape.
+A v2 event carries its payload under `data` rather than `properties`, and v2 publishes neither `session.status` nor `session.idle`.
+A turn opens with `session.execution.started` and closes with a terminal `session.execution.succeeded`, `failed`, or `interrupted`.
+The default export replays those onto the v1 `session.status` and `session.idle` shapes the v1 handler already implements, so the session latch and the busy/idle semantics have one implementation rather than two that can drift.
+An in-turn provider retry needs no event of its own: the session stays latched busy because no terminal execution event has fired yet.
+
+The v2 adaptation is inlined in the generated file rather than imported from the primary plugins' shared library, because fm-spawn writes that file into an arbitrary project's worktree, which carries none of firstmate's own plugin code.
+The stream stays open for the plugin's lifetime and the returned teardown aborts it; an unexpected stop would freeze the busy record silently, so it is reported on stderr instead.
+Regression coverage is `../../../tests/fm-busy-adapter-wiring.test.sh`, which drives the default export the way the v2 loader does, over a real async event stream.

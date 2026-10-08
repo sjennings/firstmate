@@ -227,6 +227,151 @@ test_opencode_plugin_semantic_lifecycle() {
   pass "opencode plugin classifies from session.status, scoped to the latched worker session"
 }
 
+# drive_oc_plugin_v2 <plugin-path> <events-json-lines...>: load the generated
+# OpenCode plugin the way the v2 loader does (the default export's setup with a
+# plugin context) and drive it through a real async event stream, so the v2
+# envelope and the teardown abort are both exercised.
+drive_oc_plugin_v2() {  # <plugin> <mode: drive|drop> <event-types...>
+  local plugin=$1 mode=$2 joined
+  shift 2
+  joined=$(IFS=';'; printf '%s' "$*")
+  PLUGIN_PATH="$plugin" MODE="$mode" EVENTS="$joined" node --input-type=module 2>&1 <<'EOF'
+import { pathToFileURL } from "node:url";
+
+const mod = await import(pathToFileURL(process.env.PLUGIN_PATH).href);
+// The real v2 stream stays open for the plugin's lifetime, so a finite fake
+// generator ending is exactly the lost-subscription case the adapter reports.
+// The loop asks for the next event only after the previous one has been fully
+// handled, so resolving there is what makes the drain wait condition-based
+// rather than a sleep that hides a slow busy-state writer.
+let drained;
+const allHandled = new Promise((resolve) => {
+  drained = resolve;
+});
+async function* subscribe() {
+  for (const line of process.env.EVENTS.split(";").filter(Boolean)) {
+    const type = JSON.parse(line);
+    yield { id: type, created: 0, type, data: { sessionID: "ses_v2" } };
+  }
+  if (process.env.MODE === "drop") return;
+  drained();
+  await new Promise(() => {});
+}
+const teardown = await mod.default.setup({ event: { subscribe: () => subscribe() } });
+// The dropped-stream mode never parks, so its report is what ends the wait.
+if (process.env.MODE === "drive") {
+  await allHandled;
+  // Unloading the plugin must abort the stream and never report the end.
+  teardown();
+}
+await new Promise((resolve) => setTimeout(resolve, 200));
+EOF
+}
+
+oc_v2_started() { printf '%s' '"session.execution.started"'; }
+
+oc_v2_terminal() {  # <succeeded|failed|interrupted>
+  printf '"session.execution.%s"' "$1"
+}
+
+test_opencode_v2_plugin_semantic_lifecycle() {
+  local rec id=busy-oc-v2 out state plugin terminal
+  rec=$(make_spawn_case oc-v2-lifecycle opencode "$id")
+  read_case_record "$rec"
+  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  expect_code 0 $? "opencode spawn should succeed: $out"
+  state="$HOME_DIR/state"
+  plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
+  assert_present "$plugin" "opencode spawn did not write the busy-state plugin"
+
+  # The v2 loader never calls the v1 named function, so a file that only
+  # exports one installs no hook and the worker silently loses its semantic
+  # busy state. Drive the default export exactly as the loader does.
+  out=$(classify opencode "$id" "$state")
+  [ "$out" = "busy fm-spawn" ] || fail "seed after spawn must be 'busy fm-spawn', got '$out'"
+
+  out=$(drive_oc_plugin_v2 "$plugin" drive "$(oc_v2_started)") || fail "v2 started drive failed: $out"
+  [ -z "$out" ] || fail "a torn-down v2 subscription must stay silent, got: $out"
+  out=$(classify opencode "$id" "$state")
+  [ "$out" = "busy opencode-plugin" ] || fail "session.execution.started must classify busy, got '$out'"
+
+  rm -f "$state/$id.turn-ended"
+  # v2 publishes no session.idle: a turn ends with a terminal
+  # session.execution.* event, so every terminal must close the latched session
+  # and touch the notification marker.
+  for terminal in succeeded failed interrupted; do
+    out=$(drive_oc_plugin_v2 "$plugin" drive "$(oc_v2_started)" "$(oc_v2_terminal "$terminal")") \
+      || fail "v2 $terminal drive failed: $out"
+    [ -f "$state/$id.turn-ended" ] || fail "session.execution.$terminal no longer touches the notification marker"
+    out=$(classify opencode "$id" "$state")
+    [ "$out" = "idle opencode-plugin" ] || fail "session.execution.$terminal must classify idle, got '$out'"
+    rm -f "$state/$id.turn-ended"
+  done
+
+  # An in-turn provider retry fires no terminal event, so the latch must hold
+  # the worker busy without any retry-specific handling.
+  out=$(drive_oc_plugin_v2 "$plugin" drive "$(oc_v2_started)" "$(oc_v2_started)") || fail "v2 retry drive failed: $out"
+  out=$(classify opencode "$id" "$state")
+  [ "$out" = "busy opencode-plugin" ] || fail "a repeated execution.started must stay busy, got '$out'"
+  [ ! -e "$state/$id.turn-ended" ] || fail "a non-terminal execution event fabricated a completed turn"
+
+  # A superseded incarnation's late events must still be refused.
+  "$ROOT/bin/fm-busy-event.sh" arm "$state" "$id" >/dev/null
+  out=$(drive_oc_plugin_v2 "$plugin" drive "$(oc_v2_terminal succeeded)") || fail "stale v2 drive failed: $out"
+  out=$(classify opencode "$id" "$state")
+  [ "$out" = "busy fm-spawn" ] || fail "a stale-gen v2 event must not change state, got '$out'"
+  pass "opencode plugin serves the v2 loader: session.execution events classify busy and idle"
+}
+
+# A stream that ends while the plugin is live would freeze the busy record, so
+# the adapter must say so instead of going quietly dark. Drive the same path a
+# real teardown never takes.
+test_opencode_v2_plugin_reports_a_lost_subscription() {
+  local rec id=busy-oc-v2-drop out state plugin
+  rec=$(make_spawn_case oc-v2-drop opencode "$id")
+  read_case_record "$rec"
+  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  expect_code 0 $? "opencode spawn should succeed: $out"
+  state="$HOME_DIR/state"
+  plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
+
+  out=$(drive_oc_plugin_v2 "$plugin" drop "$(oc_v2_started)") || fail "v2 dropped-stream drive failed: $out"
+  assert_contains "$out" "subscription ended unexpectedly" \
+    "a v2 subscription that ends while the plugin is live must be reported, got: $out"
+  out=$(classify opencode "$id" "$state")
+  [ "$out" = "busy opencode-plugin" ] || fail "the started event must still classify busy, got '$out'"
+  pass "opencode v2 adapter reports a subscription that ends instead of going dark"
+}
+
+# The v2 loader dispatches the default export, so a regression that leaves it
+# out loads the module and silently installs nothing. Prove the loader's own
+# entry point is what classifies, by driving only the default export.
+test_opencode_v2_plugin_is_the_loader_entry_point() {
+  local rec id=busy-oc-v2-entry out state plugin
+  rec=$(make_spawn_case oc-v2-entry opencode "$id")
+  read_case_record "$rec"
+  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id" "$PROJ_DIR")
+  expect_code 0 $? "opencode spawn should succeed: $out"
+  state="$HOME_DIR/state"
+  plugin="$WT_DIR/.opencode/plugins/fm-busy-state.js"
+
+  out=$(PLUGIN_PATH="$plugin" node --input-type=module 2>&1 <<'EOF'
+import { pathToFileURL } from "node:url";
+const mod = await import(pathToFileURL(process.env.PLUGIN_PATH).href);
+if (typeof mod.default?.setup !== "function" || typeof mod.default.id !== "string") {
+  console.error(`v2 loader contract unmet: ${JSON.stringify(Object.keys(mod.default ?? {}))}`);
+  process.exit(1);
+}
+if (typeof mod.FmBusyState !== "function") {
+  console.error("the v1 named export is missing, so the file stopped serving v1");
+  process.exit(1);
+}
+EOF
+  )
+  expect_code 0 $? "the generated plugin must expose both loader contracts: $out"
+  pass "generated opencode plugin exposes the v2 default export and keeps the v1 named export"
+}
+
 run_claude_hook() {  # <settings.json> <hook-event>
   local cmd
   cmd=$(jq -r ".hooks[\"$2\"][0].hooks[0].command" "$1")
@@ -427,6 +572,9 @@ test_pi_extension_serializes_settle_before_next_start
 test_pi_extension_stale_incarnation_rejected
 test_kimi_and_grok_install_no_unverified_wiring
 test_opencode_plugin_semantic_lifecycle
+test_opencode_v2_plugin_semantic_lifecycle
+test_opencode_v2_plugin_is_the_loader_entry_point
+test_opencode_v2_plugin_reports_a_lost_subscription
 test_claude_hooks_semantic_lifecycle
 test_claude_hooks_stale_incarnation_harmless
 test_gemini_hooks_semantic_lifecycle
