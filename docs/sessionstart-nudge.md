@@ -140,7 +140,6 @@ So an unreachable host can no longer consume this budget.
 Some digest work remains local but unbounded:
 
 - Tool version probes.
-- The backlog listing.
 
 So the whole digest still runs as one bounded child, default 120s via `FM_SESSION_START_TIMEOUT`.
 
@@ -152,6 +151,8 @@ The per-item backlog row reads inside bootstrap's reconcile and close-replay swe
 Each of those reads is bounded by `FM_BACKLOG_ROW_TIMEOUT_SECS` (default 10s) through `bin/fm-backlog-transition-lib.sh`.
 The first bound hit latches the sweep.
 Later reads in that sweep then return immediately while still naming their own item.
+
+Each tasks-axi group read in the compact backlog listing is bounded by `FM_SESSION_START_BACKLOG_TIMEOUT` (default 10s), so a tasks-axi that never exits counts as a failed read instead of consuming the digest bound.
 
 When timeout, gtimeout, and perl are unavailable, the shared timeout owner falls back to a pure-Bash process-group watchdog.
 So no supported host runs the digest unbounded.

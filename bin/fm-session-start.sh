@@ -162,11 +162,14 @@
 # addressing, so the same listing serves a markdown home and a home on another
 # adapter; a bare `tasks-axi --file` reached markdown only. A non-markdown
 # adapter's rows are therefore listed regardless of whether data/backlog.md
-# exists, because that file is not where that home keeps its work.
-# When manual mode is selected, or tasks-axi is unavailable or incompatible,
-# this script prints only backlog section headings and item title lines, so
-# title-line hold and blocked-by metadata remain visible while indented bodies
-# stay out of the startup digest; the same never-bound-a-held-or-blocked-row
+# exists, because that file is not where that home keeps its work; when such a
+# home's read fails, or tasks-axi is unavailable or incompatible, the digest
+# prints "live backlog unavailable" and never renders that file. Each group read
+# is bounded by FM_SESSION_START_BACKLOG_TIMEOUT (default 10s).
+# When manual mode is selected, or tasks-axi is unavailable or incompatible on
+# a markdown home, this script prints only backlog section headings and item
+# title lines, so title-line hold and blocked-by metadata remain visible while
+# indented bodies stay out of the startup digest; the same never-bound-a-held-or-blocked-row
 # rule applies, recognized there from the title line's own hold/blocked-by
 # markers.
 # Full bodies are targeted follow-up only: `bin/fm-tasks-axi.sh show <id> --full` when
