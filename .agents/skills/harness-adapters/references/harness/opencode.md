@@ -48,6 +48,7 @@ The PreToolUse-equivalent watcher-arm seatbelt blocks by throwing from `tool.exe
 
 `../../../bin/fm-spawn.sh` writes the per-worker `.opencode/plugins/fm-busy-state.js`, whose `opencode-plugin` busy state supervision reads; the semantic contract is owned by [`fm-busy-lib.sh`](../../../../../bin/fm-busy-lib.sh).
 Its export shape follows the OpenCode major that `opencode --version` reports at spawn, because the two loaders cannot share one shape.
+The probe runs from the worker worktree, so a per-directory version pin resolves the same OpenCode the worker launches.
 On 2.x it carries the v1 named function plus an object default export, because OpenCode 2.x's loader never calls the v1 named function.
 On 1.x, or when the probe fails or prints no parseable version, it carries only the v1 named function, because a 1.x loader calls every module export as a plugin function and fails on an object default export.
 The 2.x loader loads the module and calls the default export's `setup(ctx)`, so a file exporting only the v1 named function installs no hook at all and the worker silently loses its semantic busy state and falls back to pane heuristics.
