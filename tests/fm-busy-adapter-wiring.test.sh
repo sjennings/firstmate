@@ -353,7 +353,8 @@ test_opencode_v2_plugin_semantic_lifecycle() {
 
   # A superseded incarnation's late events must still be refused.
   "$ROOT/bin/fm-busy-event.sh" arm "$state" "$id" >/dev/null
-  out=$(drive_oc_plugin_v2 "$plugin" drive "$(oc_v2_terminal succeeded)") || fail "stale v2 drive failed: $out"
+  out=$(drive_oc_plugin_v2 "$plugin" drive "$(oc_v2_started)" "$(oc_v2_terminal succeeded)") \
+    || fail "stale v2 drive failed: $out"
   out=$(classify opencode "$id" "$state")
   [ "$out" = "busy fm-spawn" ] || fail "a stale-gen v2 event must not change state, got '$out'"
   pass "opencode plugin serves the v2 loader: session.execution events classify busy and idle"
@@ -380,8 +381,8 @@ test_opencode_v2_plugin_reports_a_lost_subscription() {
 }
 
 # The v2 loader dispatches the default export, so a regression that leaves it
-# out loads the module and silently installs nothing. Prove the loader's own
-# entry point is what classifies, by driving only the default export.
+# out loads the module and silently installs nothing. Assert the 2.x shape
+# exposes both loader contracts: the v2 default export and the v1 named export.
 test_opencode_v2_plugin_is_the_loader_entry_point() {
   local rec id=busy-oc-v2-entry out state plugin
   rec=$(make_spawn_case oc-v2-entry opencode "$id")

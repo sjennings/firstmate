@@ -4723,7 +4723,7 @@ EOF
     # loader calls every export as a plugin function, so an object default
     # export fails to load there. An absent, failing, or unparseable probe gets
     # the v1 shape, the one a worker can always load.
-    opencode_major=$(opencode --version 2>/dev/null | sed -n '1s/^[^0-9]*\([0-9][0-9]*\)\..*/\1/p')
+    opencode_major=$(cd "$WT" && opencode --version 2>/dev/null | sed -n '1s/^[^0-9]*\([0-9][0-9]*\)\..*/\1/p')
     cat >"$WT/.opencode/plugins/fm-busy-state.js" <<EOF
 // Firstmate semantic busy-state events + turn-end notification; written by
 // fm-spawn under the contract owned by bin/fm-busy-lib.sh.
