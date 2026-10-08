@@ -2037,7 +2037,7 @@ EOF
   probes=$(grep -c -- 'update --help' "$log" || true)
   [ "$probes" -eq 1 ] \
     || fail "tasks-axi update --help ran $probes times in one session start: $(cat "$log")"
-  assert_grep 'ready' "$log" "the backlog listing never ran, so the verdict was not actually reused"
+  grep -qx 'ready' "$log" || fail "the backlog listing never ran, so the verdict was not actually reused"
   pass "session start: the tasks-axi compatibility verdict is computed once and reused"
 }
 
@@ -2126,8 +2126,8 @@ EOF
     "session start did not ask tasks-axi for the blocked queued group"
   # The listing addresses the backlog through bin/fm-tasks-axi.sh, so the
   # markdown file arrives in the environment rather than as a trailing --file.
-  assert_grep "ready" "$log" \
-    "session start did not ask tasks-axi for the dispatchable queued set"
+  grep -qx 'ready' "$log" \
+    || fail "session start did not ask tasks-axi for the dispatchable queued set"
   assert_grep "TASKS_AXI_FILE=$home/data/backlog.md" "$log" \
     "the markdown backlog listing was not addressed at this home's own backlog file"
 
@@ -2221,6 +2221,40 @@ EOF
     "the fallback did not say plainly that this home keeps no markdown backlog"
 
   pass "a failed listing on a home with no markdown backlog falls back without leaking a raw tool error"
+}
+
+# A home that moved to another adapter usually still carries its pre-migration
+# data/backlog.md. When the live read fails, those stale rows must never be
+# rendered as the fleet view.
+test_backlog_compact_failed_non_markdown_read_never_renders_a_stale_markdown_file() {
+  local rec root home fakebin out backlog_section
+  rec=$(new_world backlog-compact-beads-stale)
+  IFS='|' read -r root home fakebin <<EOF
+$rec
+EOF
+  make_fake_toolchain "$fakebin"
+  make_fake_ps_claude "$fakebin"
+  printf 'backend = "beads"\n\n[beads]\nbinary = "bd"\npath = "data/beads/.beads"\nprefix = "fm"\n' \
+    > "$home/.tasks.toml"
+  printf '# Backlog\n\n## In flight\n\n- [ ] stale-inflight - STALE-INFLIGHT-ROW\n\n## Queued\n\n- [ ] stale-queued - STALE-QUEUED-ROW\n' \
+    > "$home/data/backlog.md"
+  make_failing_tasks_axi "$fakebin"
+
+  out=$(run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+
+  backlog_section=$(printf '%s\n' "$out" | sed -n '/^data\/backlog.md$/,/^Work under way/p')
+  assert_contains "$backlog_section" "tasks-axi compact listing failed; live backlog unavailable." \
+    "a failed non-markdown read did not say the live backlog is unavailable"
+  assert_contains "$backlog_section" "error: backend unavailable" \
+    "a failed non-markdown read did not carry the tasks-axi error"
+  assert_not_contains "$backlog_section" "STALE-INFLIGHT-ROW" \
+    "a stale in-flight row from the leftover markdown file was rendered as the fleet view"
+  assert_not_contains "$backlog_section" "STALE-QUEUED-ROW" \
+    "a stale queued row from the leftover markdown file was rendered as the fleet view"
+  assert_not_contains "$backlog_section" "falling back to title-line rendering" \
+    "a failed non-markdown read still fell back to the markdown title lines"
+
+  pass "a failed read on a non-markdown home never renders its stale markdown backlog"
 }
 
 # The bound may only ever cut the dispatchable-now listing, and whatever it cuts
@@ -3206,6 +3240,7 @@ test_session_start_seeds_the_outcome_display_tail_while_away
 test_backlog_compact_tasks_axi_omits_bodies_and_keeps_metadata
 test_backlog_compact_lists_a_non_markdown_backend_without_the_markdown_file
 test_backlog_compact_fallback_reports_a_missing_markdown_file_plainly
+test_backlog_compact_failed_non_markdown_read_never_renders_a_stale_markdown_file
 test_backlog_queued_bound_discloses_its_remainder
 test_backlog_compact_manual_backend_skips_indented_bodies
 test_backlog_compact_tasks_axi_unavailable_uses_manual_fallback

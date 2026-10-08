@@ -558,6 +558,13 @@ print_backlog_tasks_axi_compact() {
     print_ready_queued_bounded "$ready"
     return 0
   fi
+  if [ -f "$path" ] && ! fm_backlog_markdown_backlog; then
+    printf 'tasks-axi compact listing failed; live backlog unavailable.\n'
+    printf '%s\n' "$err"
+    printf '(live backlog unavailable: this home keeps its backlog in its configured tasks-axi backend, so %s is not rendered)\n' \
+      "$path"
+    return 0
+  fi
   printf 'tasks-axi compact listing failed; falling back to title-line rendering.\n'
   printf '%s\n' "$err"
   print_backlog_manual_compact "$path" "fallback"
