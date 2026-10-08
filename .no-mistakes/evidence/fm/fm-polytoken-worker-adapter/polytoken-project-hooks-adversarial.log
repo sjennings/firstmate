@@ -1,0 +1,24 @@
+### Scenario A: fresh polytoken spawn into a project with its own tracked .polytoken/hooks.json
+project base carries tracked hooks.json: .polytoken/hooks.json
+error: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-pt-adv.gD7jvF/wtA/.polytoken/hooks.json already exists; a project's own polytoken hook layer is not firstmate's to clobber, so this task cannot be launched on polytoken into this worktree. Select another harness for this task.
+fm-spawn exit=1
+hooks.json unchanged: yes
+facet present: no
+busy script present: no
+config dir present: no
+git status: ''
+task window exists: 1
+
+### Scenario B: live polytoken worker, project then commits its own hooks.json, fm-control relaunch
+spawned adv1 harness=polytoken kind=scout window=firstmate:fm-adv1 worktree=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-pt-adv.gD7jvF/wtB
+fm-spawn exit=0
+worker state: alive
+stopped adv1 harness=polytoken backend=tmux endpoint=firstmate:fm-adv1 worktree=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-pt-adv.gD7jvF/wtB
+fm-control exit rc=0 state=dead
+error: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-pt-adv.gD7jvF/wtB/.polytoken/hooks.json already exists; a project's own polytoken hook layer is not firstmate's to clobber, so this task cannot be launched on polytoken into this worktree. Select another harness for this task.
+error: the replacement agent for adv1 could not be launched on polytoken
+error: adv1's agent was stopped but the replacement did not launch; no agent is running, and its work plus the recorded progress note are preserved at /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-pt-adv.gD7jvF/wtB
+fm-control relaunch rc=1
+hooks.json present+unchanged: yes
+git status hooks.json: ''
+meta harness: polytoken

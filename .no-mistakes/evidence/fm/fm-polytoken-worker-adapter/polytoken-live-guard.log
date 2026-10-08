@@ -1,0 +1,9 @@
+ok - polytoken 0.8.19: the live model catalog still lists the cheap low-effort reference
+ok - polytoken 0.8.19: fm-spawn's generated launch starts a bound, alive worker on the generated config and facet
+ok - polytoken 0.8.19: the brief ran and fm-harness.sh detects polytoken from a real tool subprocess
+ok - polytoken 0.8.19: the stop hook closes the busy record and touches the turn-ended marker
+ok - polytoken 0.8.19: fm-send steers a real turn that opens the busy record and renders the busy row
+ok - polytoken 0.8.19: fm-control interrupt cancels the real turn over REST and leaves the worker alive
+ok - polytoken 0.8.19: fm-control relaunch replaces the worker through the generated launch and rebinds its session
+ok - polytoken 0.8.19: fm-control exit stops the real worker and the backend reads it dead
+exit=0
