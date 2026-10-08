@@ -2355,6 +2355,34 @@ EOF
   pass "unavailable or incompatible tasks-axi falls back to compact manual backlog rendering"
 }
 
+# The same boundary holds when tasks-axi cannot run at all: a non-markdown
+# home's leftover data/backlog.md is not its backlog, so with no usable
+# tasks-axi its stale rows must never be rendered as the fleet view.
+test_backlog_compact_tasks_axi_unavailable_never_renders_a_stale_non_markdown_file() {
+  local rec root home fakebin out backlog_section
+  rec=$(new_world backlog-compact-beads-unavailable)
+  IFS='|' read -r root home fakebin <<EOF
+$rec
+EOF
+  make_fake_toolchain "$fakebin"
+  make_fake_ps_claude "$fakebin"
+  printf 'backend = "beads"\n\n[beads]\nbinary = "bd"\npath = "data/beads/.beads"\nprefix = "fm"\n' \
+    > "$home/.tasks.toml"
+  write_long_body_backlog "$home/data/backlog.md"
+
+  out=$(run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+
+  backlog_section=$(printf '%s\n' "$out" | sed -n '/^data\/backlog.md$/,/^Work under way/p')
+  assert_contains "$backlog_section" "(live backlog unavailable: tasks-axi is unavailable or incompatible" \
+    "a non-markdown home without usable tasks-axi did not say the live backlog is unavailable"
+  assert_not_contains "$backlog_section" "compact-startup - Compact startup digest" \
+    "a stale row from a non-markdown home's leftover markdown file was rendered as the fleet view"
+  assert_not_contains "$backlog_section" "compact backlog listing (tasks-axi unavailable or incompatible;" \
+    "a non-markdown home without usable tasks-axi still rendered its leftover markdown title lines"
+
+  pass "unavailable tasks-axi on a non-markdown home never renders its stale markdown backlog"
+}
+
 # --- runtime bound -----------------------------------------------------------
 #
 # The digest runs on a session-open hook that blocks session initialization, so
@@ -3244,6 +3272,7 @@ test_backlog_compact_failed_non_markdown_read_never_renders_a_stale_markdown_fil
 test_backlog_queued_bound_discloses_its_remainder
 test_backlog_compact_manual_backend_skips_indented_bodies
 test_backlog_compact_tasks_axi_unavailable_uses_manual_fallback
+test_backlog_compact_tasks_axi_unavailable_never_renders_a_stale_non_markdown_file
 test_fleet_digest_empty_fleet
 test_next_step_sources_x_mode_cadence
 test_next_step_afk_delegates_to_daemon

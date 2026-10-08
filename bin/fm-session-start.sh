@@ -592,8 +592,13 @@ print_backlog_compact() {
   # conditions"). Listing such a home through that file reported no in-flight
   # work at all. Only a markdown backend reads its backlog from the file, and
   # only there does an absent or empty file stay the ABSENT/empty marker.
-  if fm_tasks_axi_backend_available "$CONFIG" && ! fm_backlog_markdown_backlog; then
-    print_backlog_tasks_axi_compact "$path"
+  if ! fm_backlog_backend_manual "$CONFIG" && ! fm_backlog_markdown_backlog; then
+    if fm_tasks_axi_backend_available "$CONFIG"; then
+      print_backlog_tasks_axi_compact "$path"
+    else
+      printf '(live backlog unavailable: tasks-axi is unavailable or incompatible, and this home keeps its backlog in its configured tasks-axi backend, so %s is not rendered)\n' \
+        "$path"
+    fi
     print_backlog_pointer
     return 0
   fi
