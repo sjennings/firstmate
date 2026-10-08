@@ -6,7 +6,7 @@ Verified on 2026-06-11 across versions 1.15.7 through 1.17.6, with busy-queue be
 
 | Fact | Value |
 |---|---|
-| Busy state | The Firstmate-owned plugin's semantic `session.status`: `busy` and `retry` are active, `idle` is inactive, latched to the worker's own session. |
+| Busy state | The Firstmate-owned plugin's semantic `session.status` on 1.x (`busy` and `retry` are active, `idle` is inactive) or `session.execution.*` on 2.x (`started` is active; `succeeded`, `failed`, and `interrupted` are inactive), latched to the worker's own session. |
 | Exit command | `/exit`. |
 | Interrupt | Double Escape; it is known to be flaky while a long shell command runs, so use `../../../bin/fm-control.sh <task-id> relaunch` for a wedged pane. |
 | Skill invocation | No separate verified form beyond normal slash-command behavior; use natural language when the exact command is uncertain. |
@@ -57,6 +57,6 @@ A turn opens with `session.execution.started` and closes with a terminal `sessio
 The default export replays those onto the v1 `session.status` and `session.idle` shapes the v1 handler already implements, so the session latch and the busy/idle semantics have one implementation rather than two that can drift.
 An in-turn provider retry needs no event of its own: the session stays latched busy because no terminal execution event has fired yet.
 
-The v2 adaptation is inlined in the generated file rather than imported from the primary plugins' shared library, because fm-spawn writes that file into an arbitrary project's worktree, which carries none of firstmate's own plugin code.
+The generated file must be self-contained, because fm-spawn writes it into an arbitrary project's worktree, which carries none of firstmate's own plugin code.
 The stream stays open for the plugin's lifetime and the returned teardown aborts it; an unexpected stop would freeze the busy record silently, so it is reported on stderr instead.
 Regression coverage is `../../../tests/fm-busy-adapter-wiring.test.sh`, which drives the default export the way the v2 loader does, over a real async event stream.
