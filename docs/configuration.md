@@ -369,6 +369,9 @@ Automatic transitions run from the configured data directory's parent, letting t
 A markdown backlog is additionally addressed by an explicit `--file` at `<data>/backlog.md`, so the change lands in the home that owns the task regardless of the caller's working directory.
 
 Any other configured adapter is addressed by that root alone, because `--file` would override the adapter's own workspace path.
+That rule governs reads too: the session-start digest's compact backlog listing runs every group read through [`bin/fm-tasks-axi.sh`](../bin/fm-tasks-axi.sh), so one listing serves a markdown home and a home on another adapter.
+It also means such a home's rows are listed whether or not `data/backlog.md` exists, because that file is not where that home keeps its work; only a markdown backend reads its backlog from the file, and only there does an absent or empty file stay an `ABSENT`/empty marker.
+Addressing a non-markdown adapter with `--file` fails outright there, which is why no firstmate read passes one.
 
 ### Exemptions and refusal conditions
 

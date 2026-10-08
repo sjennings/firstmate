@@ -158,6 +158,11 @@
 # (`--state in_flight`, `--state held`, `--state queued --blocked`, and
 # `tasks-axi ready`), so this script never reimplements task state; the groups
 # can overlap, because an in-flight item that is also held appears under both.
+# Those reads run through bin/fm-tasks-axi.sh, which owns home-correct backlog
+# addressing, so the same listing serves a markdown home and a home on another
+# adapter; a bare `tasks-axi --file` reached markdown only. A non-markdown
+# adapter's rows are therefore listed regardless of whether data/backlog.md
+# exists, because that file is not where that home keeps its work.
 # When manual mode is selected, or tasks-axi is unavailable or incompatible,
 # this script prints only backlog section headings and item title lines, so
 # title-line hold and blocked-by metadata remain visible while indented bodies
@@ -363,6 +368,8 @@ PRIMARY_HARNESS=$("$SCRIPT_DIR/fm-harness.sh" 2>/dev/null || printf unknown)
 . "$SCRIPT_DIR/fm-backend.sh"
 # shellcheck source=bin/fm-tasks-axi-lib.sh
 . "$SCRIPT_DIR/fm-tasks-axi-lib.sh"
+# shellcheck source=bin/fm-backlog-transition-lib.sh disable=SC1091
+. "$SCRIPT_DIR/fm-backlog-transition-lib.sh"
 # shellcheck source=bin/fm-public-followup-lib.sh
 . "$SCRIPT_DIR/fm-public-followup-lib.sh"
 # shellcheck source=bin/fm-trace-context-lib.sh
@@ -436,6 +443,14 @@ print_backlog_manual_compact() {
   local path=$1 reason=$2
   printf 'compact backlog listing (%s; done rows omitted; every in-flight, held, and blocked title line kept; other queued bounded to %s; indented task bodies omitted)\n' \
     "$reason" "$QUEUED_LIMIT"
+  # Title-line rendering reads the markdown file, which a home on another
+  # adapter may not keep at all. Saying so plainly beats awk's own
+  # "can't open file" diagnostic, which would print raw mid-section.
+  if [ ! -f "$path" ]; then
+    printf '(no markdown backlog at %s to render title lines from; this home keeps its backlog in its configured tasks-axi backend)\n' \
+      "$path"
+    return 0
+  fi
   awk -v max="$QUEUED_LIMIT" -v keep_re="$MANUAL_KEEP_RE" '
     function state_for_heading(line, heading) {
       heading = line
@@ -510,25 +525,35 @@ print_ready_queued_bounded() {
   '
 }
 
+# Every listing below runs through bin/fm-tasks-axi.sh rather than a bare
+# `tasks-axi`, because that wrapper owns home-correct backlog addressing: it
+# runs tasks-axi from the addressing root so the home's own .tasks.toml selects
+# the backend, pins TASKS_AXI_FILE to <data>/backlog.md for the markdown
+# backend, and clears that pin for every other adapter. A trailing `--file`
+# addresses a markdown backlog and nothing else, so a configured non-markdown
+# adapter refused all four of these calls and the digest fell back to rendering
+# a markdown file that carries no live rows - reporting zero in-flight work
+# while workers ran. The wrapper also decodes stored captain-hold reasons on
+# `list`, so this section must not decode a second time.
 print_backlog_tasks_axi_compact() {
   local path=$1 in_flight held blocked ready err
-  if ! in_flight=$(tasks-axi list --file "$path" --state in_flight --fields "$BACKLOG_FIELDS" 2>&1); then
+  if ! in_flight=$("$SCRIPT_DIR/fm-tasks-axi.sh" list --state in_flight --fields "$BACKLOG_FIELDS" 2>&1); then
     err=$in_flight
-  elif ! held=$(tasks-axi list --file "$path" --state held --fields "$BACKLOG_FIELDS" 2>&1); then
+  elif ! held=$("$SCRIPT_DIR/fm-tasks-axi.sh" list --state held --fields "$BACKLOG_FIELDS" 2>&1); then
     err=$held
-  elif ! blocked=$(tasks-axi list --file "$path" --state queued --blocked --fields "$BACKLOG_FIELDS" 2>&1); then
+  elif ! blocked=$("$SCRIPT_DIR/fm-tasks-axi.sh" list --state queued --blocked --fields "$BACKLOG_FIELDS" 2>&1); then
     err=$blocked
-  elif ! ready=$(tasks-axi ready --file "$path" 2>&1); then
+  elif ! ready=$("$SCRIPT_DIR/fm-tasks-axi.sh" ready 2>&1); then
     err=$ready
   else
     printf 'compact backlog listing (tasks-axi; done rows omitted; every in-flight, held, and blocked row shown in full; ready queued bounded to %s; task bodies omitted)\n' \
       "$QUEUED_LIMIT"
     printf '\nin flight:\n'
-    printf '%s\n' "$in_flight" | fm_hold_reason_decode_stream | strip_axi_help
+    printf '%s\n' "$in_flight" | strip_axi_help
     printf '\nheld (captain- or time-gated; an in-flight item that is also held appears in both groups):\n'
-    printf '%s\n' "$held" | fm_hold_reason_decode_stream | strip_axi_help
+    printf '%s\n' "$held" | strip_axi_help
     printf '\nblocked queued:\n'
-    printf '%s\n' "$blocked" | fm_hold_reason_decode_stream | strip_axi_help
+    printf '%s\n' "$blocked" | strip_axi_help
     printf '\nready queued (dispatchable now):\n'
     print_ready_queued_bounded "$ready"
     return 0
@@ -538,9 +563,33 @@ print_backlog_tasks_axi_compact() {
   print_backlog_manual_compact "$path" "fallback"
 }
 
+# Whether this home's selected backend reads its backlog out of the markdown
+# file itself. bin/fm-tasks-axi-lib.sh owns backend resolution, and the
+# addressing root - the data directory's parent, where a home keeps the
+# .tasks.toml naming the backend - is bin/fm-backlog-transition-lib.sh's. An
+# unresolvable backend answers markdown, the markdown default, so a home in
+# doubt keeps the file gating it has always had.
+fm_backlog_markdown_backlog() {
+  local root backend
+  root=$(fm_backlog_root "$DATA") || return 0
+  backend=$(fm_tasks_axi_backend "$root" 2>/dev/null) || backend=markdown
+  [ "$backend" = markdown ]
+}
+
 print_backlog_compact() {
   local path=$1 label=$2
   subsection "$label"
+  # A configured non-markdown adapter keeps its rows somewhere other than this
+  # markdown file, so the file's presence, size, and title lines say nothing
+  # about whether work exists (docs/configuration.md, "Exemptions and refusal
+  # conditions"). Listing such a home through that file reported no in-flight
+  # work at all. Only a markdown backend reads its backlog from the file, and
+  # only there does an absent or empty file stay the ABSENT/empty marker.
+  if fm_tasks_axi_backend_available "$CONFIG" && ! fm_backlog_markdown_backlog; then
+    print_backlog_tasks_axi_compact "$path"
+    print_backlog_pointer
+    return 0
+  fi
   if [ -f "$path" ]; then
     if [ -s "$path" ]; then
       if fm_tasks_axi_backend_available "$CONFIG"; then

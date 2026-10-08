@@ -17,7 +17,8 @@
 #   - the per-line status-tail cap and its truncation marker
 #   - startup backlog composition: done rows dropped, every in-flight/held/
 #     blocked row kept whole, the dispatchable queued listing bounded with an
-#     exact disclosed remainder
+#     exact disclosed remainder, and the same listing working on a home whose
+#     backend is not markdown (no --file, no data/backlog.md gate)
 #   - orphan status logs whose task meta has already disappeared
 #   - per-task endpoint-liveness lines for a live and a dead recorded target,
 #     tmux and herdr both
@@ -114,16 +115,45 @@ SH
 # listing must never ask for: a body field, an unfiltered whole-backlog listing,
 # or done rows. FM_FAKE_TASKS_AXI_READY sizes the ready set so the queued bound
 # can be driven past its limit.
+#
+# FM_FAKE_TASKS_AXI_BACKEND selects the adapter this fake impersonates. Under
+# `markdown` a read must carry the backlog file, exactly as the real tool
+# requires. Under `beads` the same read must carry NO --file at all, because
+# the real beads adapter refuses one outright ("--file addresses a markdown
+# backlog; the beads backend uses `[beads] path`") and is addressed by its
+# configured workspace path instead. That refusal is the behaviour the startup
+# listing must not trip over, so the fake reproduces it rather than accepting
+# --file unconditionally.
 make_fake_tasks_axi_compact() {
   local fakebin=$1
   cat > "$fakebin/tasks-axi" <<'SH'
 #!/usr/bin/env bash
 set -u
 log=${FM_FAKE_TASKS_AXI_LOG:-}
-[ -n "$log" ] && printf '%s\n' "$*" >> "$log"
+[ -n "$log" ] && { printf '%s\n' "$*"; printf 'TASKS_AXI_FILE=%s\n' "${TASKS_AXI_FILE:-}"; } >> "$log"
 ready_count=${FM_FAKE_TASKS_AXI_READY:-2}
+backend=${FM_FAKE_TASKS_AXI_BACKEND:-markdown}
 require_file() {
+  case "$backend" in
+    beads)
+      case "$*" in
+        *'--file '*)
+          printf '%s\n' 'error: "--file addresses a markdown backlog; the beads backend uses `[beads] path`"' >&2
+          printf '%s\n' 'code: VALIDATION_ERROR' >&2
+          exit 2
+          ;;
+      esac
+      [ -n "${TASKS_AXI_FILE:-}" ] && {
+        printf '%s\n' 'error: a non-markdown backend must not carry an inherited TASKS_AXI_FILE' >&2
+        exit 2
+      }
+      return 0
+      ;;
+  esac
+  # A markdown backlog is addressed either by a trailing --file or by the
+  # TASKS_AXI_FILE pin bin/fm-tasks-axi.sh exports; the real tool accepts both.
   case "$*" in *'--file '*) return 0 ;; esac
+  [ -n "${TASKS_AXI_FILE:-}" ] && return 0
   printf '%s\n' 'missing explicit backlog file' >&2
   exit 9
 }
@@ -201,6 +231,39 @@ case "${1:-}" in
     ;;
 esac
 exit 1
+SH
+  chmod +x "$fakebin/tasks-axi"
+}
+
+# make_failing_tasks_axi <fakebin>: a backend that passes the shared
+# compatibility probe and then fails every real read, so the startup listing
+# takes its genuine-failure fallback path instead of the unavailable-backend
+# path that never attempts a read at all.
+make_failing_tasks_axi() {
+  local fakebin=$1
+  cat > "$fakebin/tasks-axi" <<'SH'
+#!/usr/bin/env bash
+set -u
+case "${1:-}" in
+  --version|-v|-V)
+    printf '%s\n' '0.2.6'
+    exit 0
+    ;;
+  update)
+    if [ "${2:-}" = --help ]; then
+      printf '%s\n' 'usage: tasks-axi update <id> [--archive-body]'
+      exit 0
+    fi
+    ;;
+  mv)
+    if [ "${2:-}" = --help ]; then
+      printf '%s\n' 'usage: tasks-axi mv <dest> [<id>...]'
+      exit 0
+    fi
+    ;;
+esac
+printf '%s\n' 'error: backend unavailable' >&2
+exit 3
 SH
   chmod +x "$fakebin/tasks-axi"
 }
@@ -1974,7 +2037,7 @@ EOF
   probes=$(grep -c -- 'update --help' "$log" || true)
   [ "$probes" -eq 1 ] \
     || fail "tasks-axi update --help ran $probes times in one session start: $(cat "$log")"
-  assert_grep 'ready --file' "$log" "the backlog listing never ran, so the verdict was not actually reused"
+  assert_grep 'ready' "$log" "the backlog listing never ran, so the verdict was not actually reused"
   pass "session start: the tasks-axi compatibility verdict is computed once and reused"
 }
 
@@ -2061,10 +2124,103 @@ EOF
     "session start did not ask tasks-axi for the held group"
   assert_grep "--state queued --blocked --fields blocked_by,hold_kind,hold_reason" "$log" \
     "session start did not ask tasks-axi for the blocked queued group"
-  assert_grep "ready --file $home/data/backlog.md" "$log" \
+  # The listing addresses the backlog through bin/fm-tasks-axi.sh, so the
+  # markdown file arrives in the environment rather than as a trailing --file.
+  assert_grep "ready" "$log" \
     "session start did not ask tasks-axi for the dispatchable queued set"
+  assert_grep "TASKS_AXI_FILE=$home/data/backlog.md" "$log" \
+    "the markdown backlog listing was not addressed at this home's own backlog file"
 
   pass "compatible tasks-axi backlog rendering drops done rows and keeps every in-flight, held, and blocked row"
+}
+
+# The digest's fleet view is the whole point of the compact listing, so a home
+# on a non-markdown adapter must see its real in-flight rows. A trailing
+# `--file` addresses a markdown backlog only: the beads adapter refuses one
+# outright, so every group read failed and the digest printed the fallback with
+# an empty listing while workers ran. The reads must go through
+# bin/fm-tasks-axi.sh, which addresses a configured non-markdown adapter by its
+# own workspace path, and a home whose rows do not live in data/backlog.md must
+# not be gated on that file existing at all.
+#
+# FM_FAKE_TASKS_AXI_BACKEND=beads makes the fake refuse --file exactly as the
+# real adapter does, so a regression reintroduces this failure rather than
+# passing unnoticed.
+test_backlog_compact_lists_a_non_markdown_backend_without_the_markdown_file() {
+  local rec root home fakebin out log backlog_section
+  rec=$(new_world backlog-compact-beads)
+  IFS='|' read -r root home fakebin <<EOF
+$rec
+EOF
+  make_fake_toolchain "$fakebin"
+  make_fake_tasks_axi_compact "$fakebin"
+  make_fake_ps_claude "$fakebin"
+  # A home whose backlog moved off the markdown file entirely: the file is
+  # absent, and it is the listing that must still report real work.
+  printf 'backend = "beads"\n\n[beads]\nbinary = "bd"\npath = "data/beads/.beads"\nprefix = "fm"\n' \
+    > "$home/.tasks.toml"
+  log="$home/tasks-axi.log"
+
+  out=$(FM_FAKE_TASKS_AXI_BACKEND=beads FM_FAKE_TASKS_AXI_LOG="$log" \
+    run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+
+  assert_contains "$out" "compact backlog listing (tasks-axi; done rows omitted;" \
+    "a non-markdown backend did not render the compact backlog listing"
+  assert_contains "$out" "compact-startup,in_flight,ship,firstmate,Compact startup digest,none,captain,captain choice pending" \
+    "a non-markdown backend's in-flight row was missing from the fleet view"
+  assert_contains "$out" "held-queued,queued,ship,firstmate,Held queued work,none,captain,captain choice pending" \
+    "a non-markdown backend's held row was missing from the fleet view"
+  assert_contains "$out" 'blocked-followup,queued,scout,firstmate,Follow compact startup,compact-startup,"-","-"' \
+    "a non-markdown backend's blocked row was missing from the fleet view"
+  assert_contains "$out" "ready-2,queued,ship,firstmate,Ready item 2" \
+    "a non-markdown backend's dispatchable queued row was missing from the fleet view"
+  assert_not_contains "$out" "compact listing failed" \
+    "the compact listing still failed on a non-markdown backend, so the fleet view silently emptied"
+  # Scoped to the backlog subsection: the CONTEXT section prints ABSENT for
+  # absent context files, which is unrelated to the backlog listing.
+  backlog_section=$(printf '%s\n' "$out" | sed -n '/^data\/backlog.md$/,/^Work under way/p')
+  assert_not_contains "$backlog_section" "ABSENT" \
+    "a home whose backlog does not live in data/backlog.md was gated on that file existing"
+  assert_not_contains "$backlog_section" "--file" \
+    "the listing addressed a non-markdown backend with --file, which that adapter refuses"
+
+  # The four group reads reached the tool with no markdown pin at all: an
+  # inherited TASKS_AXI_FILE would misdirect the adapter to a file backend.
+  if grep -q '^TASKS_AXI_FILE=.' "$log" 2>/dev/null; then
+    fail "a non-markdown backend read inherited a markdown backlog pin: $(cat "$log")"
+  fi
+
+  pass "a home on a non-markdown backend sees its in-flight work, with no --file and no markdown-file gate"
+}
+
+# The title-line fallback reads the markdown file, which a home on another
+# adapter may not keep. Falling back must say that in plain words rather than
+# print awk's own "can't open file" diagnostic raw into the digest.
+test_backlog_compact_fallback_reports_a_missing_markdown_file_plainly() {
+  local rec root home fakebin out backlog_section
+  rec=$(new_world backlog-compact-beads-fallback)
+  IFS='|' read -r root home fakebin <<EOF
+$rec
+EOF
+  make_fake_toolchain "$fakebin"
+  make_fake_ps_claude "$fakebin"
+  printf 'backend = "beads"\n\n[beads]\nbinary = "bd"\npath = "data/beads/.beads"\nprefix = "fm"\n' \
+    > "$home/.tasks.toml"
+  # Compatible with the shared probe, so the listing is genuinely attempted
+  # and genuinely fails, reaching the fallback.
+  make_failing_tasks_axi "$fakebin"
+
+  out=$(run_session_start "$home" "$root" "$fakebin:$BASE_PATH")
+
+  assert_contains "$out" "tasks-axi compact listing failed; falling back to title-line rendering." \
+    "a failing backend listing did not fall back to title-line rendering"
+  backlog_section=$(printf '%s\n' "$out" | sed -n '/^data\/backlog.md$/,/^Work under way/p')
+  assert_not_contains "$backlog_section" "can't open file" \
+    "the fallback leaked awk's own missing-file diagnostic instead of explaining the absence"
+  assert_contains "$backlog_section" "no markdown backlog at" \
+    "the fallback did not say plainly that this home keeps no markdown backlog"
+
+  pass "a failed listing on a home with no markdown backlog falls back without leaking a raw tool error"
 }
 
 # The bound may only ever cut the dispatchable-now listing, and whatever it cuts
@@ -3048,6 +3204,8 @@ test_branch_outcome_replay_respects_captain_barrier_and_lease_sweep
 test_non_pi_session_start_leaves_branch_state_untouched
 test_session_start_seeds_the_outcome_display_tail_while_away
 test_backlog_compact_tasks_axi_omits_bodies_and_keeps_metadata
+test_backlog_compact_lists_a_non_markdown_backend_without_the_markdown_file
+test_backlog_compact_fallback_reports_a_missing_markdown_file_plainly
 test_backlog_queued_bound_discloses_its_remainder
 test_backlog_compact_manual_backend_skips_indented_bodies
 test_backlog_compact_tasks_axi_unavailable_uses_manual_fallback
