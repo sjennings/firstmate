@@ -1,0 +1,58 @@
+ok - real claude scout spawned via fm-spawn and acted (ready.txt written)
+before: harness=claude model=haiku effort=low pane_pid=55784 pane_cmd=2.1.300 state=alive
+--- fm-control clswitch relaunch --harness polytoken --note 'switching runtime' -> rc=1
+error: polytoken requires concrete --model and --effort axes; its own default routing cannot choose a worker profile
+after:  harness=claude model=haiku effort=low pane_pid=55784 pane_cmd=2.1.300 state=alive
+=== claude pane after refused switch ===
+
+ ▐▛███▛█   Claude Code v2.1.300
+▝▜██████▀  Haiku 5.5 with low effort · Claude Max
+ ▝▝   ▝▝   /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.BIBJVt/wt
+
+
+❯ : Firstmate operational input waiting: read
+  '/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.BIBJVt/fm/state/operational-inbox/1792024061-e6247576d5f982d7.msg' and handle its contents
+  as Firstmate operational input.
+
+  Read 1 file, ran 1 shell command
+
+⏺ Wrote ready into ready.txt in the worktree and verified it reads back as ready. I did not commit, and I didn't do anything else.
+
+  The file is at /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.BIBJVt/wt/ready.txt.
+
+✻ Sautéed for 6s · done 7:27 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                                                               ○ low · /effort
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents
+ok - refused claude->polytoken switch left the real claude worker running, record unchanged, no polytoken wiring
+ok - lab claude worker exited; lab torn down on exit

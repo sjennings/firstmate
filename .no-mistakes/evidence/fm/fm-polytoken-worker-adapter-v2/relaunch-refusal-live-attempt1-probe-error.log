@@ -1,0 +1,23 @@
+ok - polytoken 0.9.0: the live model catalog still lists the cheap low-effort reference
+ok - polytoken 0.9.0: generated launch starts a bound worker; daemon state and retained selection prove the model and effort pin
+ok - polytoken 0.9.0: the brief ran and fm-harness.sh detects polytoken from a real tool subprocess
+ok - polytoken 0.9.0: the stop hook closes the busy record and touches the turn-ended marker
+before: session=0dk37w-untie port=57212 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=11861 state=alive
+--- default effort: fm-control ptrefuse relaunch --effort default --note refusal probe -> rc=1
+error: polytoken requires concrete --model and --effort axes; its own default routing cannot choose a worker profile
+after:  session=0dk37w-untie port=57212 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=11861 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: default effort refused before stop; same pane, session, daemon, and record
+--- default model: fm-control ptrefuse relaunch --model default --note refusal probe -> rc=1
+error: polytoken requires concrete --model and --effort axes; its own default routing cannot choose a worker profile
+after:  session=0dk37w-untie port=57212 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=11861 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: default model refused before stop; same pane, session, daemon, and record
+--- unlisted model: fm-control ptrefuse relaunch --model zai/not-a-real-model --effort low --note refusal probe -> rc=1
+error: polytoken model 'zai/not-a-real-model' is not listed by 'polytoken print models'; choose a listed concrete model
+after:  session=0dk37w-untie port=57212 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=11861 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: unlisted model refused before stop; same pane, session, daemon, and record
+--- explicit harness switch with no axes: fm-control ptrefuse relaunch --harness polytoken --note refusal probe -> rc=0
+relaunched ptrefuse harness=polytoken from=polytoken model=zai/glm-5.3-flash effort=low backend=tmux endpoint=firstmate:fm-ptrefuse worktree=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-polytoken-signals.nv4I45/wt
+not ok - polytoken 0.9.0: explicit harness switch with no axes: relaunch was not refused

@@ -1,0 +1,93 @@
+ok - polytoken 0.9.0: the live model catalog still lists the cheap low-effort reference
+ok - polytoken 0.9.0: generated launch starts a bound worker; daemon state and retained selection prove the model and effort pin
+ok - polytoken 0.9.0: the brief ran and fm-harness.sh detects polytoken from a real tool subprocess
+ok - polytoken 0.9.0: the stop hook closes the busy record and touches the turn-ended marker
+before: session=0dk39q-stock port=57326 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=23543 state=alive
+--- default effort: fm-control ptrefuse relaunch --effort default --note refusal probe -> rc=1
+error: polytoken requires concrete --model and --effort axes; its own default routing cannot choose a worker profile
+after:  session=0dk39q-stock port=57326 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=23543 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: default effort refused before stop; same pane, session, daemon, and record
+--- default model: fm-control ptrefuse relaunch --model default --note refusal probe -> rc=1
+error: polytoken requires concrete --model and --effort axes; its own default routing cannot choose a worker profile
+after:  session=0dk39q-stock port=57326 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=23543 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: default model refused before stop; same pane, session, daemon, and record
+--- unlisted model: fm-control ptrefuse relaunch --model zai/not-a-real-model --effort low --note refusal probe -> rc=1
+error: polytoken model 'zai/not-a-real-model' is not listed by 'polytoken print models'; choose a listed concrete model
+after:  session=0dk39q-stock port=57326 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=23543 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: unlisted model refused before stop; same pane, session, daemon, and record
+--- parenthesized model ref: fm-control ptrefuse relaunch --model zai/glm-5.3-flash(low) --effort low --note refusal probe -> rc=1
+error: polytoken requires a concrete base model and separate --effort
+after:  session=0dk39q-stock port=57326 harness=polytoken model=zai/glm-5.3-flash effort=low pane_pid=23543 state=alive
+daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"low","active_facet":"firstmate-worker"}
+ok - polytoken 0.9.0: parenthesized model ref refused before stop; same pane, session, daemon, and record
+=== pane after refusals ===
+
+The default interactive shell is now zsh.
+To update your account to use zsh, please run `chsh -s /bin/zsh`.
+For more details, please visit https://support.apple.com/kb/HT208050.
+bash-3.2$ treehouse get
+
+The default interactive shell is now zsh.
+To update your account to use zsh, please run `chsh -s /bin/zsh`.
+For more details, please visit https://support.apple.com/kb/HT208050.
+bash-3.2$ cd -- '/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-polytoken-signals.HqI48z/wt'
+bash-3.2$ export GOTMPDIR=/tmp/fm-ptrefuse/gotmp
+bash-3.2$ export COMPACT_ADVISER_DISABLE=1
+bash-3.2$ export FM_TASK_ID=ptrefuse
+bash-3.2$ . '/tmp/fm-ptrefuse+8f63a0a3271865f896967d6867eacf9527fd11c8b111ffc0b9f44897dd58cab3/launch.s1792023860.22909.21161.sh'
+     ┃ belongs to your current task even when it is outside the worktree or under the supervising firstmate home, so   ││ 0dk39q-stock
+     ┃ read and acknowledge its messages and do not reject it as another home's state. Never inspect or change any     ││ Model zai/glm-5.3-flash(low)
+     ┃ other home's endpoint namespace; this authorization is limited to the exact task paths named by this brief.     ││ Facet firstmate-worker
+     ┃ When this task works on Firstmate itself, the repository root `AGENTS.md` (also imported by `CLAUDE.md`)        ││
+     ┃ is project content and the supervisor contract for the firstmate managing you: follow this brief instead of     ││ Flagged files             [Ctrl+F2] ▾
+     ┃ that supervisor contract. Project instructions still govern the work wherever they do not conflict with this    ││ No flagged files
+     ┃ worker identity, including `CONTRIBUTING.md` and `firstmate-coding-guidelines` for Firstmate changes. If the    ││
+     ┃ `firstmate-coding-guidelines` skill name does not resolve in this session, read `/Users/wire2k/.no-mistakes/    ││
+     ┃ worktrees/306eb1dde12e/01M4YDAN9CAV47ZF3SVMVFSDJA/.agents/skills/firstmate-coding-guidelines/SKILL.md` instead. ││
+     ┃                                                                                                                 ││ Async Jobs                [Ctrl+F3] ▾
+     ┃ # Task #                                                                                                        ││ No async jobs
+     ┃                                                                                                                 █│
+     ┃ ## Captain's intent ##                                                                                          █│
+     ┃                                                                                                                 █│
+     ┃ Runtime verification only: compute 12345 plus 67890 using your shell tool and write only the                    █│
+     ┃ result into answer.txt. Then use your shell tool to run 'bash /Users/wire2k/.no-mistakes/                       █│
+     ┃ worktrees/306eb1dde12e/01M4YDAN9CAV47ZF3SVMVFSDJA/bin/fm-harness.sh' and write its output to harness.txt. Do no █│
+     ┃ other work, do not commit, and do not delegate.                                                                 █│
+     ┃                                                                                                                 █│ Todos                     [Ctrl+F4] ▾
+     ┃ ## Firstmate spec ##                                                                                            █│ No todos
+     ┃                                                                                                                 █│
+     ┃ Exercise the spawn behavior under test.                                                                         █│
+                                                                                                                       █│
+ ok shell_exec echo $((12345 + 67890)) ▸                                                                         ┃     █│
+   ┃ exit_code=0 stdout: 80235 stderr: full_output: stdout_log: /private/var/folders/qw/                         ┃     █│
+   ┃ fh5wf_hn25x4f712lv79r_480000gn/T/fm-p…                                                                      ┃     █│
+                                                                                                                 ┃     █│
+ ok file_write ▾                                                                                                 ┃     █│
+   ┃ wrote 6 bytes to answer.txt                                                                                 ┃     █│
+   ┃                                                                                                             ┃     █│
+   ┃ +++ answer.txt                                                                                              ┃     █│
+   ┃ +80235                                                                                                      ┃     █│
+                                                                                                                 ┃     █│
+ ok shell_exec bash /Users/wire2k/.no-mistakes/worktrees/306eb1dde12e/01M4YDAN9CAV47ZF3SVMVFSDJA/bin/fm-harness. ┃     █│
+   ┃ exit_code=0 stdout: polytoken stderr: full_output: stdout_log: /private/var/folders/qw/                     ┃     █│
+   ┃ fh5wf_hn25x4f712lv79r_480000gn/T/…                                                                          ┃     █│
+                                                                                                                 ┃     █│
+ ok file_write ▾                                                                                                 ┃     █│
+   ┃ wrote 10 bytes to harness.txt                                                                               ┃     █│
+   ┃                                                                                                             ┃     █│
+   ┃ +++ harness.txt                                                                                             ┃     █│
+   ┃ +polytoken                                                                                                  ┃     █│
+                                                                                                                 ┃     █│
+ Done. Computed 12345 + 67890 = 80235 via shell and wrote `answer.txt` with the result. Ran the fm-harness.sh    ┃     █│
+ script (exit 0, output `polytoken`) and wrote that output to `harness.txt`. No other work performed; nothing    ┃     █│
+ committed.                                                                                                      ┃     █│
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ /.../fm-polytoken-signals.HqI48z/wt   git: polytoken-live*   facet: firstmate-worker   model: zai/glm-5.3-flash(low)   perms: bypass   97% context left
+relaunched daemon: {"active_model":"zai/glm-5.3-flash","active_reasoning_effort":"high"}
+ok - polytoken 0.9.0: a valid relaunch after the refusals rebinds a fresh session with the requested effort
+ok - polytoken 0.9.0: probe worker exited and torn down

@@ -1,0 +1,2 @@
+not ok - claude spawn failed: error: refusing to pre-register Claude trust: '/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.gpMNkL/wt' is a primary checkout, not an isolated worktree
+error: could not pre-register Claude workspace trust for /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.gpMNkL/wt; refusing to launch a claude worker that would wedge on the trust dialog; inspect window firstmate:fm-clswitch

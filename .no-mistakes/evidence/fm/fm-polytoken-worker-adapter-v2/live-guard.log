@@ -1,0 +1,15 @@
+FM_TEST_BEGIN 2026-10-15T00:18:27Z tests/fm-polytoken-signals-live-e2e.test.sh family=live-harness-optin expected_gate_skip=live-capability
+ok - polytoken 0.9.0: the live model catalog still lists the cheap low-effort reference
+ok - polytoken 0.9.0: generated launch starts a bound worker; daemon state and retained selection prove the model and effort pin
+ok - polytoken 0.9.0: the brief ran and fm-harness.sh detects polytoken from a real tool subprocess
+ok - polytoken 0.9.0: the stop hook closes the busy record and touches the turn-ended marker
+ok - polytoken 0.9.0: fm-send's durable message is read, acted on, and acknowledged
+ok - polytoken 0.9.0: fm-send steers a real turn that opens the busy record and renders the busy row
+ok - polytoken 0.9.0: fm-control interrupt cancels the real turn over REST and leaves the worker alive
+ok - polytoken 0.9.0: fm-control relaunch replaces the worker through the generated launch and rebinds its session
+ok - polytoken 0.9.0: fm-control exit stops the real worker and the backend reads it dead
+ok - polytoken 0.9.0: teardown retires the task and its generated Polytoken artifacts
+FM_TEST_END 2026-10-15T00:22:05Z tests/fm-polytoken-signals-live-e2e.test.sh exit=0 duration_ms=217221 gate_skip=false
+FM_TEST_SUMMARY total=1 failed=0 skipped_gate=0 duration_ms=217279
+FM_TEST_SUMMARY_FAMILY family=live-harness-optin count=1 duration_ms=217221 failed=0
+FM_TEST_SLOWEST rank=1 script=tests/fm-polytoken-signals-live-e2e.test.sh duration_ms=217221
