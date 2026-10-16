@@ -1,0 +1,7 @@
+--- real tmux pane content (Polytoken busy row shape):
+conversation line
+  Running for 3.03s
+harness-less busy state (union): idle
+polytoken-scoped busy state: busy
+claude-scoped busy state: idle
+FM_DELIVERY_BUSY_REGEX_DEFAULT definition byte-identical to base 1a6714f2: yes
