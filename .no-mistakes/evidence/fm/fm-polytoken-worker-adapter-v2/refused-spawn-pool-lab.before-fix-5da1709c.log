@@ -1,0 +1,71 @@
+
+=== pool before anything (treehouse status)
+base  main  (repository default)
+
+=== 1. fm-spawn pt1 --harness polytoken (project tracks .polytoken/hooks.json)
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm/data/pt1/launch-brief.md records no ship branch; defaulting to legacy branch fm/pt1
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm/data/pt1/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode local-only - confirm its definition of done matches
+notice: pt1 ships mode=local-only while the standing posture for project is no-mistakes - less rigor than the captain's standing posture; proceed only on a current explicit captain instruction or an intake judgment you can state
+error: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/1/project/.polytoken/hooks.json already exists; a project's own polytoken hook layer is not firstmate's to clobber, so this task cannot be launched on polytoken into this worktree. Select another harness for this task.
+exit=1
+PASS: refused spawn exits non-zero
+PASS: refusal names the project hook layer
+PASS: refusal does not point at a window to inspect
+PASS: no task record published
+FAIL: tmux window fm-pt1 closed
+slot claims in pool after refusal: 0
+PASS: no slot claim left anywhere in the pool
+FAIL: treehouse reports every pool slot available (none leased or in use)
+FAIL: task temp root /tmp/fm-pt1 removed
+refused spawn had acquired slot: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/1/project
+
+=== pool after refusal (treehouse status)
+base  main  (repository default)
+1     in-use       /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/1/project  (detached)
+                   zsh (97822)
+lab tmux windows:
+lab
+fm-pt1
+
+=== 2. retry pt1 on another harness (raw bash launch)
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm/data/pt1/launch-brief.md records no ship branch; defaulting to legacy branch fm/pt1
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm/data/pt1/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode local-only - confirm its definition of done matches
+notice: pt1 ships mode=local-only while the standing posture for project is no-mistakes - less rigor than the captain's standing posture; proceed only on a current explicit captain instruction or an intake judgment you can state
+error: window firstmate:fm-pt1 already exists
+exit=1
+FAIL: retry launches
+pt1 worktree=
+
+=== 3. spawn a different task pt2 (raw bash launch)
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm/data/pt2/launch-brief.md records no ship branch; defaulting to legacy branch fm/pt2
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm/data/pt2/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode local-only - confirm its definition of done matches
+notice: pt2 ships mode=local-only while the standing posture for project is no-mistakes - less rigor than the captain's standing posture; proceed only on a current explicit captain instruction or an intake judgment you can state
+spawned pt2 harness=bash kind=ship mode=local-only yolo=off window=firstmate:fm-pt2 worktree=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/2/project
+exit=0
+PASS: second task launches
+pt2 worktree=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/2/project
+FAIL: retry reused the slot the refused spawn returned
+FAIL: the two task records name different worktrees
+claim ./.fm-slot-owner:
+claim /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/2/.fm-slot-owner:
+task=pt2
+home=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/fm
+grep: ./.fm-slot-owner: No such file or directory
+FAIL: pt1's slot is claimed by pt1
+PASS: pt2's slot is claimed by pt2
+
+=== pool at end (treehouse status)
+base  main  (repository default)
+1     in-use       /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/1/project  (detached)
+                   zsh (97822)
+2     in-use       /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.EcYtgM/pool/.treehouse/project-1a000d/2/project  (detached)
+                   zsh (98781), bash (99456)
+lab tmux windows:
+lab
+fm-pt1
+fm-pt2
+
+=== RESULT: 7 failing checks

@@ -1,0 +1,19 @@
+ok - polytoken 0.9.0: the live model catalog still lists the cheap low-effort reference
+--- generated worker facet(s) delivered to the worker (task-dir guidance lines):
+The tool_flow tool cannot read the Firstmate task directory your brief names for proof and scratch output, because it is outside this worktree; for paths there, call file_read and file_write directly or use the shell.
+ok - generated worker facet carries the task-directory guidance
+--- $LAB/fm/data/pttaskdir/proof.txt:
+taskdir-ok
+--- worktree readback.txt:
+taskdir-ok
+
+--- tool calls touching the task dir in the retained session log (name + path):
+["file_read","{\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"}"]
+["file_read","{\"value\":{\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"},\"truncated\":false}"]
+["file_write","{\"content\":\"taskdir-ok\",\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"}"]
+["file_write","{\"content\":\"taskdir-ok\\n\",\"path\":\"readback.txt\"}"]
+["file_write","{\"value\":{\"content\":\"taskdir-ok\",\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"},\"truncated\":false}"]
+["file_write","{\"value\":{\"content\":\"taskdir-ok\\n\",\"path\":\"readback.txt\"},\"truncated\":false}"]
+ok - a real polytoken worker wrote and read back proof in $FM_HOME/data/<task-id>/ with its file tools
+ok - lab worker exited and torn down
+exit=0
