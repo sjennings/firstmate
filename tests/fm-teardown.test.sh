@@ -5505,6 +5505,8 @@ test_polytoken_session_retention() (
     seed_polytoken_session "$source"
     seed_polytoken_session "$legacy"
     export HOME="$case_dir/user-home"
+    # POLYTOKEN_DATA_PATH is intentionally isolated per test subshell.
+    # shellcheck disable=SC2030
     export POLYTOKEN_DATA_PATH="$case_dir/explicit-store"
     export XDG_DATA_HOME="$case_dir/xdg"
     store="$POLYTOKEN_DATA_PATH/sessions-v1"
@@ -5595,6 +5597,8 @@ test_polytoken_secondmate_child_retention() (
       # The parent's choice must not override a child's owning-home setting.
       touch "$case_dir/config/polytoken-keep-sessions-off"
     fi
+    # POLYTOKEN_DATA_PATH is intentionally isolated per test subshell.
+    # shellcheck disable=SC2031
     export POLYTOKEN_DATA_PATH="$case_dir/store"
     store="$POLYTOKEN_DATA_PATH/sessions-v1"
     rc=0
