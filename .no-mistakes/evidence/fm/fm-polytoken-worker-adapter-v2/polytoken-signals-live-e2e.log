@@ -8,4 +8,3 @@ ok - polytoken 0.9.0: fm-control interrupt cancels the real turn over REST and l
 ok - polytoken 0.9.0: fm-control relaunch replaces the worker through the generated launch and rebinds its session
 ok - polytoken 0.9.0: fm-control exit stops the real worker and the backend reads it dead
 ok - polytoken 0.9.0: teardown retires the task and its generated Polytoken artifacts
-exit=0

@@ -1,0 +1,38 @@
+
+=== 1. fm-spawn pt1 --harness polytoken; a stand-in retry takes the pt1 spawn lock as the abort closes the window
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/fm
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/fm/data/pt1/launch-brief.md records no ship branch; defaulting to legacy branch fm/pt1
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/fm/data/pt1/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode local-only - confirm its definition of done matches
+notice: pt1 ships mode=local-only while the standing posture for project is no-mistakes - less rigor than the captain's standing posture; proceed only on a current explicit captain instruction or an intake judgment you can state
+error: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/pool/.treehouse/project-0dd67d/1/project/.polytoken/hooks.json already exists; a project's own polytoken hook layer is not firstmate's to clobber, so this task cannot be launched on polytoken into this worktree. Select another harness for this task.
+warning: another spawn of pt1 holds its spawn lock; leaving its polytoken wiring, temp root, and staged launch file in place
+exit=1
+PASS: refused spawn exits non-zero
+PASS: stand-in retry really held the per-id spawn lock
+PASS: abort reports it skipped per-id cleanup under contention
+PASS: task temp root /tmp/fm-pt1 left for the lock holder
+PASS: no task record published
+PASS: tmux window fm-pt1 still closed
+PASS: slot claim still dropped
+
+=== pool after contended refusal (treehouse status)
+base  main  (repository default)
+1     available    /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/pool/.treehouse/project-0dd67d/1/project  (detached)
+PASS: treehouse reports the slot returned
+
+=== 2. after the holder exits, retry pt1 on raw bash
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/fm
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/fm/data/pt1/launch-brief.md records no ship branch; defaulting to legacy branch fm/pt1
+warning: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/fm/data/pt1/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode local-only - confirm its definition of done matches
+notice: pt1 ships mode=local-only while the standing posture for project is no-mistakes - less rigor than the captain's standing posture; proceed only on a current explicit captain instruction or an intake judgment you can state
+spawned pt1 harness=bash kind=ship mode=local-only yolo=off window=firstmate:fm-pt1 worktree=/private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/pool/.treehouse/project-0dd67d/1/project
+exit=0
+PASS: retry launches
+PASS: retry record exists
+
+=== pool at end
+base  main  (repository default)
+1     in-use       /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.zylmnm/pool/.treehouse/project-0dd67d/1/project  (detached)
+                   zsh (10362), bash (11596)
+
+=== RESULT: 0 failing checks

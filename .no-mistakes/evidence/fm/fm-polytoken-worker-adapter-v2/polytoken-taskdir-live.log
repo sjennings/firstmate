@@ -6,14 +6,12 @@ ok - generated worker facet carries the task-directory guidance
 taskdir-ok
 --- worktree readback.txt:
 taskdir-ok
-
 --- tool calls touching the task dir in the retained session log (name + path):
 ["file_read","{\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"}"]
 ["file_read","{\"value\":{\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"},\"truncated\":false}"]
 ["file_write","{\"content\":\"taskdir-ok\",\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"}"]
-["file_write","{\"content\":\"taskdir-ok\\n\",\"path\":\"readback.txt\"}"]
+["file_write","{\"content\":\"taskdir-ok\",\"path\":\"readback.txt\"}"]
 ["file_write","{\"value\":{\"content\":\"taskdir-ok\",\"path\":\"$LAB/fm/data/pttaskdir/proof.txt\"},\"truncated\":false}"]
-["file_write","{\"value\":{\"content\":\"taskdir-ok\\n\",\"path\":\"readback.txt\"},\"truncated\":false}"]
+["file_write","{\"value\":{\"content\":\"taskdir-ok\",\"path\":\"readback.txt\"},\"truncated\":false}"]
 ok - a real polytoken worker wrote and read back proof in $FM_HOME/data/<task-id>/ with its file tools
 ok - lab worker exited and torn down
-exit=0
