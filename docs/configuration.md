@@ -1425,6 +1425,14 @@ A `backend=t3code` task refuses before any change, because T3 already runs it at
 Generic login failures do not establish a defeated bypass, and managed hook review remains a separate operator decision.
 Neither fallback is unrestricted execution, and Firstmate does not change vendor or security-agent settings.
 
+## Polytoken session retention (config/polytoken-keep-sessions-off)
+
+Polytoken worker conversations are preserved during cleanup by default, so tools such as backpass can discover them after the worker is removed.
+Create the local presence flag `config/polytoken-keep-sessions-off` to disable preservation in this home; remove it to enable preservation again.
+The flag is not inherited by secondmate homes; each child's owning home controls its retention.
+Cleanup never overwrites an existing session ID, and a copy failure warns without blocking cleanup.
+The script header in `bin/fm-teardown.sh` owns the source directories, destination resolution, and partial-copy behavior.
+
 ## Worker tool exclusions (config/crew-exclude-tools)
 
 The optional local, gitignored `config/crew-exclude-tools` hides named tools from this home's ship and scout workers, for example to keep an MCP server's write tools out of reach while its read tools stay available.

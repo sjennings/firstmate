@@ -5482,6 +5482,137 @@ test_retained_sources_still_reach_the_ordinary_refusal() {
   pass "present required sources still reach the ordinary teardown refusal"
 }
 
+# Exercise retention through the complete teardown command, with all stores
+# isolated from the machine's actual Polytoken conversations.
+seed_polytoken_session() {  # <session-dir>
+  mkdir -p "$1/nested"
+  printf '%s\n' '{"project_path":"/example/project"}' > "$1/session.json"
+  printf '%s\n' '{"message":"worker conversation"}' > "$1/log.jsonl"
+  printf '%s\n' '{"message":"subagent conversation"}' > "$1/subagent-one.jsonl"
+  printf '%s\n' 'hidden session data' > "$1/.hidden"
+  printf '%s\n' 'nested data' > "$1/nested/data"
+}
+
+test_polytoken_session_retention() (
+  local scenario case_dir source legacy store rc
+  local POLYTOKEN_DATA_PATH XDG_DATA_HOME HOME
+  for scenario in copy collision failure store-failure other-harness opt-out xdg home refused; do
+    case_dir=$(make_case "polytoken-$scenario")
+    write_meta "$case_dir" local-only ship
+    printf '%s\n' 'harness=polytoken' >> "$case_dir/state/task-x1.meta"
+    source="$case_dir/state/task-x1.polytoken-sessions-v1/session-one"
+    legacy="$case_dir/state/task-x1.polytoken-sessions/session-legacy"
+    seed_polytoken_session "$source"
+    seed_polytoken_session "$legacy"
+    export HOME="$case_dir/user-home"
+    export POLYTOKEN_DATA_PATH="$case_dir/explicit-store"
+    export XDG_DATA_HOME="$case_dir/xdg"
+    store="$POLYTOKEN_DATA_PATH/sessions-v1"
+    case "$scenario" in
+      collision)
+        mkdir -p "$store/session-one"
+        printf '%s\n' 'original conversation' > "$store/session-one/log.jsonl"
+        ln -s "$store/session-one" "$store/session-legacy"
+        ;;
+      failure)
+        printf '%s\n' '#!/usr/bin/env bash' 'exit 1' > "$case_dir/fakebin/cp"
+        chmod +x "$case_dir/fakebin/cp"
+        ;;
+      store-failure) printf '%s\n' 'not a directory' > "$POLYTOKEN_DATA_PATH" ;;
+      other-harness)
+        write_meta "$case_dir" local-only ship
+        printf '%s\n' 'harness=codex' >> "$case_dir/state/task-x1.meta"
+        ;;
+      opt-out) touch "$case_dir/config/polytoken-keep-sessions-off" ;;
+      xdg) unset POLYTOKEN_DATA_PATH; store="$XDG_DATA_HOME/polytoken/sessions-v1" ;;
+      home) unset POLYTOKEN_DATA_PATH XDG_DATA_HOME; store="$HOME/.local/share/polytoken/sessions-v1" ;;
+    esac
+    if [ "$scenario" = refused ]; then
+      wt_commit "$case_dir" 'unlanded work'
+    fi
+    rc=0
+    run_teardown "$case_dir" > "$case_dir/stdout" 2> "$case_dir/stderr" || rc=$?
+    if [ "$scenario" = refused ]; then
+      expect_code 1 "$rc" "polytoken-$scenario: unsafe teardown must still refuse"
+      assert_present "$source/log.jsonl" "polytoken-$scenario: refusal removed the source"
+      assert_absent "$store" "polytoken-$scenario: retention ran before safety checks"
+      continue
+    fi
+    expect_code 0 "$rc" "polytoken-$scenario: teardown should succeed"
+    assert_absent "$case_dir/state/task-x1.meta" "polytoken-$scenario: cleanup did not complete"
+    assert_absent "${source%/*}" "polytoken-$scenario: session root survived cleanup"
+    assert_absent "${legacy%/*}" "polytoken-$scenario: legacy root survived cleanup"
+    case "$scenario" in
+      collision)
+        assert_equals 'original conversation' "$(cat "$store/session-one/log.jsonl")" 'existing session overwritten'
+        assert_absent "$store/session-one/session.json" 'existing session was merged'
+        [ -L "$store/session-legacy" ] || fail 'existing session symlink was changed'
+        assert_grep 'already exists at' "$case_dir/stderr" 'session collision was not noted'
+        ;;
+      failure)
+        assert_grep 'cannot copy Polytoken session' "$case_dir/stderr" 'copy failure not reported'
+        assert_present "$store/session-one" 'failed copy destination was deleted'
+        ;;
+      store-failure)
+        assert_grep 'cannot create Polytoken session store' "$case_dir/stderr" 'store failure not reported'
+        ;;
+      other-harness|opt-out) assert_absent "$store" "polytoken-$scenario: retention unexpectedly ran" ;;
+      *)
+        assert_equals '{"project_path":"/example/project"}' "$(cat "$store/session-one/session.json")" 'session metadata missing'
+        assert_equals '{"message":"worker conversation"}' "$(cat "$store/session-one/log.jsonl")" 'conversation missing'
+        assert_equals '{"message":"subagent conversation"}' "$(cat "$store/session-one/subagent-one.jsonl")" 'subagent missing'
+        assert_equals 'hidden session data' "$(cat "$store/session-one/.hidden")" 'hidden session data missing'
+        assert_equals 'nested data' "$(cat "$store/session-one/nested/data")" 'nested session data missing'
+        assert_present "$store/session-legacy/log.jsonl" 'legacy session not preserved'
+        ;;
+    esac
+  done
+  pass 'Polytoken cleanup preserves sessions, honors store precedence and opt-out, skips collisions, and tolerates failures after safety checks'
+)
+
+test_polytoken_secondmate_child_retention() (
+  local scenario case_dir home child_wt source store rc
+  local POLYTOKEN_DATA_PATH
+  for scenario in copy opt-out; do
+    case_dir=$(make_case "polytoken-child-$scenario")
+    write_meta "$case_dir" local-only secondmate
+    home="$case_dir/secondmate-home"
+    mkdir -p "$home/state" "$home/data" "$home/config" "$home/projects"
+    printf '%s\n' task-x1 > "$home/.fm-secondmate-home"
+    printf '%s\n' "home=$home" >> "$case_dir/state/task-x1.meta"
+    child_wt="$case_dir/child-wt"
+    git -C "$case_dir/project" worktree add -q -b fm/child-polytoken "$child_wt" main
+    fm_write_meta "$home/state/child-polytoken.meta" \
+      'window=firstmate:fm-child-polytoken' 'endpoint_task_id=child-polytoken' \
+      "worktree=$child_wt" "project=$case_dir/project" \
+      'kind=ship' 'mode=local-only' 'harness=polytoken'
+    source="$home/state/child-polytoken.polytoken-sessions-v1/child-session"
+    seed_polytoken_session "$source"
+    seed_polytoken_session "$home/state/child-polytoken.polytoken-sessions/child-legacy"
+    if [ "$scenario" = opt-out ]; then
+      touch "$home/config/polytoken-keep-sessions-off"
+    else
+      # The parent's choice must not override a child's owning-home setting.
+      touch "$case_dir/config/polytoken-keep-sessions-off"
+    fi
+    export POLYTOKEN_DATA_PATH="$case_dir/store"
+    store="$POLYTOKEN_DATA_PATH/sessions-v1"
+    rc=0
+    run_teardown "$case_dir" --force > "$case_dir/stdout" 2> "$case_dir/stderr" || rc=$?
+    expect_code 0 "$rc" "polytoken-child-$scenario: forced cleanup should succeed"
+    assert_absent "$home" 'secondmate home was not retired'
+    if [ "$scenario" = opt-out ]; then
+      assert_absent "$store" 'child retention ignored owning-home opt-out'
+    else
+      assert_equals '{"message":"worker conversation"}' "$(cat "$store/child-session/log.jsonl")" 'child conversation missing'
+      assert_present "$store/child-legacy/subagent-one.jsonl" 'legacy child session missing'
+    fi
+  done
+  pass 'forced secondmate cleanup preserves Polytoken child sessions using the owning-home opt-out'
+)
+
+test_polytoken_session_retention || exit 1
+test_polytoken_secondmate_child_retention || exit 1
 test_teardown_preserves_opencode_busy_plugin_on_pool_return
 
 # Archive coverage uses the real teardown entry point over isolated homes.

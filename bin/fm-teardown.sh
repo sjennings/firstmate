@@ -114,6 +114,14 @@
 # session-start sweep could still close, while a journal bound to any other pane
 # - or a version 1 attempt whose workspace is still present or unreadable - may
 # name a live quarantined space and is retained for that sweep.
+# Polytoken task session directories in state/<id>.polytoken-sessions-v1 and
+# the legacy state/<id>.polytoken-sessions are copied before those roots are
+# removed, including children retired with a secondmate. Preservation is on
+# unless config/polytoken-keep-sessions-off exists in the task's owning home.
+# The destination is sessions-v1 under POLYTOKEN_DATA_PATH, otherwise
+# XDG_DATA_HOME/polytoken, otherwise ~/.local/share/polytoken. Existing session
+# ids are skipped with a note, never overwritten. Copy failures warn and leave
+# any partial destination in place; they never block cleanup or change its gates.
 # data/<id>/ is deliberately left in place: a successor spawn reads brief.md
 # from it.
 # Worktree-slot ownership (teardown-slot-collision): a treehouse pool slot is
@@ -1526,6 +1534,39 @@ remove_harness_worktree_wiring() {  # <worktree>
   done <<EOF
 $(fm_control_harness_wiring_paths "$(meta_value "$META" harness)" "$wt" "$STATE" "$ID")
 EOF
+}
+
+teardown_polytoken_sessions() {  # <state-dir> <task-id> <meta> <config-dir>
+  local state_dir=$1 id=$2 meta=$3 config_dir=$4
+  local store root session target
+  [ "$(meta_value "$meta" harness)" = polytoken ] || return 0
+  if [ ! -e "$config_dir/polytoken-keep-sessions-off" ]; then
+    store="${POLYTOKEN_DATA_PATH:-${XDG_DATA_HOME:-$HOME/.local/share}/polytoken}/sessions-v1"
+    for root in "$state_dir/$id.polytoken-sessions-v1" "$state_dir/$id.polytoken-sessions"; do
+      [ -d "$root" ] || continue
+      for session in "$root"/*; do
+        [ -d "$session" ] && [ ! -L "$session" ] || continue
+        target="$store/${session##*/}"
+        if [ -e "$target" ] || [ -L "$target" ]; then
+          echo "note: Polytoken session ${session##*/} already exists at $target; skipping" >&2
+          continue
+        fi
+        if ! mkdir -p "$store"; then
+          echo "warning: cannot create Polytoken session store $store; continuing cleanup" >&2
+          break
+        fi
+        # Exclusive creation also protects an id another cleanup just copied.
+        if ! mkdir "$target"; then
+          echo "warning: cannot reserve Polytoken session $target (possibly already exists); skipping" >&2
+          continue
+        fi
+        if ! cp -R -P "$session/." "$target/"; then
+          echo "warning: cannot copy Polytoken session $session to $target; partial copy retained, continuing cleanup" >&2
+        fi
+      done
+    done
+  fi
+  return 0
 }
 
 require_orca_worktree_id() {
@@ -3565,6 +3606,7 @@ cleanup_firstmate_home_children() {
     retire_busy_state "$sub_state" "$child_id" "$child_busy_gen" || return 1
     teardown_retire_status "$sub_state" "$child_id" "$archive_parent/children/$child_id" || return 1
     fm_wake_queue_prune_task "$sub_state" "$child_id" "$child_t" 2>/dev/null || true
+    teardown_polytoken_sessions "$sub_state" "$child_id" "$child_meta" "$home/config"
     fm_backlog_atomic_transition remove "$sub_state/$child_id.meta" "task record" "$sub_state" || return 1
     rm -f "$sub_state/$child_id.turn-ended" "$sub_state/$child_id.progress" \
       "$(fm_wake_signal_seen_path "$sub_state" "$sub_state/$child_id.turn-ended")" \
@@ -4112,6 +4154,7 @@ rm -rf "$STATE/$ID.kiro-home"
 # state/<id>.git-hooks is the spawn-owned commit-msg strip directory, left
 # read-only by its installer, and state/<id>.push-guard is a forge=external
 # task's read-only push guard record (bin/fm-git-push-guard.sh).
+teardown_polytoken_sessions "$STATE" "$ID" "$STATE/$ID.meta" "$CONFIG"
 chmod u+w "$STATE/$ID.git-hooks" 2>/dev/null || true
 # A task's polytoken config dir and sessions roots are directory trees (the
 # mirrored worker config and the versioned session tree the launch wrote
