@@ -1,0 +1,8 @@
+union line main vs head:
+  identical
+pane:
+  ⠋ thinking
+  Running for 3.03s
+harness-less fm_pane_busy_state: idle
+polytoken    fm_pane_busy_state: busy
+claude       fm_pane_busy_state: idle
