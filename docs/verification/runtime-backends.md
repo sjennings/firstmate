@@ -8,7 +8,7 @@ Exact task chronology, branch names, temporary homes, local paths, process ids, 
 
 ## Polytoken worker lifecycle
 
-Verified on 2026-10-14 with Polytoken 0.9.0 on macOS arm64 using the tmux worker path.
+Verified on 2026-10-17 with Polytoken 0.9.1 on macOS arm64 using the tmux worker path, plus brief and doorbell delivery to a Herdr-backend worker in a lab session.
 [Polytoken verification](polytoken.md) owns the commands, session-model proof, and lifecycle output; its credentialed live guard refreshes the evidence.
 This does not verify a Polytoken primary, secondmate, or native Herdr pane.
 

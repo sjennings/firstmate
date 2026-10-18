@@ -8,7 +8,10 @@
 #      subprocess's parent IS the session daemon, verified live on 0.8.19),
 #      and a structural polytoken ancestor outranks a retained CLAUDECODE.
 #   2. The launch is the captain-approved TUI-pane-plus-REST hybrid: the brief
-#      rides `--prompt`, the worker role contract rides the generated facet,
+#      and the steering doorbell ride the daemon's `POST /prompt` (never
+#      `--prompt`, never typed keys), admitted only after the TUI attaches,
+#      with a license acceptance record on file and no visible license
+#      dialog; the worker role contract rides the generated facet,
 #      the unattended permission posture rides the generated config dir's
 #      enforced `default_permission_matcher: bypass` (a project config.yaml
 #      fully replaces the global config, so nothing else can carry it), and
@@ -543,23 +546,20 @@ case "\$subcmd" in
     exit 0
     ;;
   new)
-    # Simulate the daemon's hook firing: the generated busy writer runs with
-    # the event on the environment and no arguments, exactly as a real
-    # handler does, unless the case pins the no-hook knob.
-    if [ "\${PTFAKE_NO_HOOK:-0}" != 1 ] && [ -n "\${PTFAKE_CFGDIR:-}" ]; then
-      state_dir=\$(dirname "\$PTFAKE_CFGDIR")
-      task_id=\$(basename "\$PTFAKE_CFGDIR")
-      task_id=\${task_id%.polytoken-config}
-      writer="\$state_dir/\$task_id.polytoken-busy.sh"
-      [ -f "\$writer" ] && POLYTOKEN_HOOK_EVENT=pre_user_prompt "\$writer" || true
+    # The session daemon's credential lands in the versioned sessions sibling;
+    # the brief itself arrives later through the REST stub's POST /prompt,
+    # which is where the stub fires the generated busy writer.
+    if [ -n "\${PTFAKE_SESSDIR:-}" ]; then
+      mkdir -p "\$PTFAKE_SESSDIR-v1/0czfake-echo"
+      printf '{"token":"stub-token"}\n' >"\$PTFAKE_SESSDIR-v1/0czfake-echo/credential.json"
     fi
     [ -n "\${PTFAKE_ENV_LOG:-}" ] && env >"\$PTFAKE_ENV_LOG"
-    printf 'session_id=0czfake-echo port=49999\n'
+    printf 'session_id=0czfake-echo port=%s\n' "\${PTFAKE_STUB_PORT:-49999}"
     exit 0
     ;;
   sessions)
-    printf '[{"session_id":"0czfake-echo","pid":12345,"port":49999,"project_path":"%s","credential_file_path":"%s","model":"zai/glm-5.3-flash"}]' \\
-      "\${PTFAKE_PANE_PATH:?}" "\${PTFAKE_SESSDIR:?}-v1/0czfake-echo/credential.json"
+    printf '[{"session_id":"0czfake-echo","pid":12345,"port":%s,"project_path":"%s","credential_file_path":"%s","model":"zai/glm-5.3-flash"}]' \\
+      "\${PTFAKE_STUB_PORT:-49999}" "\${PTFAKE_PANE_PATH:?}" "\${PTFAKE_SESSDIR:?}-v1/0czfake-echo/credential.json"
     exit 0
     ;;
   reap)
@@ -659,6 +659,10 @@ class H(BaseHTTPRequestHandler):
             turn = None if TURN["mode"] == "idle" else {"generation": 1, "phase": "starting"}
             self._send(200, {"turn": turn})
             return
+        if self.path == "/tui-attachment":
+            active = None if os.environ.get("PTFAKE_STUB_NO_TUI") == "1" else {"active_pid": 1}
+            self._send(200, {"active": active})
+            return
         self._send(404, {"error": "no route"})
 
     def do_POST(self):
@@ -676,18 +680,50 @@ class H(BaseHTTPRequestHandler):
                 subprocess.run(hook, shell=True, check=False)
             self._send(200, {"status": "cancel_requested", "generation": 1})
             return
+        if self.path == "/prompt":
+            body = self._body()
+            log = os.environ.get("PTFAKE_STUB_PROMPT_LOG")
+            if log:
+                with open(log, "ab") as f:
+                    f.write(body + b"\n")
+            code = int(os.environ.get("PTFAKE_STUB_PROMPT_CODE") or 202)
+            if code == 202:
+                hook = os.environ.get("PTFAKE_STUB_ON_PROMPT")
+                if hook:
+                    subprocess.run(hook, shell=True, check=False)
+                self._send(202, {"prompt_id": "p1", "session_id": "0czfake-echo"})
+                return
+            self._send(code, {"code": "refused", "message": "stub refusal"})
+            return
         self._send(404, {"error": "no route"})
 
     def log_message(self, *args):
         pass
 
+def watch_owner(owner):
+    # A test that fails before killing its stub must not leave it serving
+    # forever: exit once the owning test shell is gone.
+    import threading, time
+    def loop():
+        while True:
+            try:
+                os.kill(owner, 0)
+            except OSError:
+                os._exit(0)
+            time.sleep(1)
+    threading.Thread(target=loop, daemon=True).start()
+
+watch_owner(int(os.environ["PTFAKE_STUB_OWNER"]))
 server = HTTPServer(("127.0.0.1", 0), H)
 with open(os.environ["PTFAKE_STUB_PORT_FILE"], "w") as f:
     f.write(str(server.server_port))
 server.serve_forever()
 PY
   : > "$dir/port"
-  PTFAKE_STUB_PORT_FILE="$dir/port" python3 "$dir/stub.py" &
+  # The stub never holds the caller's output streams, so a failed test that
+  # skips its kill cannot keep a test runner's pipe open.
+  PTFAKE_STUB_PORT_FILE="$dir/port" PTFAKE_STUB_OWNER=$$ python3 "$dir/stub.py" \
+    </dev/null >/dev/null 2>"$dir/stub.err" &
   local pid=$!
   local i=0
   while [ ! -s "$dir/port" ] && [ "$i" -lt 50 ]; do
@@ -786,7 +822,9 @@ make_polytoken_spawn_case() {
   proj="$case_dir/project"
   wt="$case_dir/wt"
   mkdir -p "$home/data/$id" "$home/projects" "$home/state" "$home/config" \
-    "$home/.config/polytoken"
+    "$home/.config/polytoken" "$home/.local/share/polytoken"
+  printf '{"schema_version":1,"accepted_revision":"3"}\n' \
+    > "$home/.local/share/polytoken/license-acceptance.json"
   cat > "$home/data/$id/brief.md" <<'EOF'
 # Task
 ## Captain's intent
@@ -859,7 +897,10 @@ case "${1:-}" in
     fi
     exit 0
     ;;
-  capture-pane) exit 0 ;;
+  capture-pane)
+    [ -z "${PTFAKE_CAPTURE_FILE:-}" ] || cat "$PTFAKE_CAPTURE_FILE"
+    exit 0
+    ;;
 esac
 exit 0
 SH
@@ -882,10 +923,27 @@ NODE_BIN=$(command -v node) || fail "test needs node"
 NODE_BIN_DIR=$(dirname "$NODE_BIN")
 BASE_PATH=${FM_TEST_BASE_PATH:-$NODE_BIN_DIR:/usr/bin:/bin:/usr/sbin:/sbin}
 
+# run_polytoken_spawn: the real fm-spawn.sh against the fakes plus a live REST
+# stub standing in for the session daemon. The stub's port is what the fake
+# sessions listing reports, every POST /prompt body lands in
+# <case>/prompts.log, and an accepted prompt fires the generated busy writer
+# exactly as the daemon's pre_user_prompt hook would (PTFAKE_NO_HOOK=1 keeps
+# it silent).
 run_polytoken_spawn() {
-  local case_dir=$1 home=$2 proj=$3 wt=$4 fakebin=$5 id=$6
+  local case_dir=$1 home=$2 proj=$3 wt=$4 fakebin=$5 id=$6 port pid on_prompt='' rc=0
   shift 6
-  HOME="$home" XDG_CONFIG_HOME="$home/.config" FM_ROOT_OVERRIDE='' FM_HOME="$home" \
+  mkdir -p "$case_dir/stub"
+  if [ "${PTFAKE_NO_HOOK:-0}" != 1 ]; then
+    printf -v on_prompt 'POLYTOKEN_HOOK_EVENT=pre_user_prompt %q' \
+      "${PTFAKE_STATE_DIR:-$home/state}/$id.polytoken-busy.sh"
+  fi
+  : > "$case_dir/prompts.log"
+  PTFAKE_STUB_ON_PROMPT="$on_prompt" PTFAKE_STUB_PROMPT_LOG="$case_dir/prompts.log" \
+    rest_stub_start "$case_dir/stub" > "$case_dir/stub/handle" || fail "the REST stub must start"
+  read -r port pid < "$case_dir/stub/handle"
+  printf '%s\n' "$port" > "$case_dir/stub-port"
+  HOME="$home" XDG_CONFIG_HOME="$home/.config" XDG_DATA_HOME="$home/.local/share" \
+    FM_ROOT_OVERRIDE='' FM_HOME="$home" \
     FM_STATE_OVERRIDE="${PTFAKE_STATE_DIR:-$home/state}" FM_DATA_OVERRIDE="$home/data" \
     FM_PROJECTS_OVERRIDE="$home/projects" FM_CONFIG_OVERRIDE="$home/config" \
     FM_SPAWN_NO_GUARD=1 FM_FAKE_PANE_PATH="$wt" TMUX="fake,1,0" \
@@ -898,8 +956,13 @@ run_polytoken_spawn() {
     PTFAKE_NO_HOOK="${PTFAKE_NO_HOOK:-0}" \
     FM_POLYTOKEN_READY_POLLS="${FM_POLYTOKEN_READY_POLLS:-40}" \
     FM_POLYTOKEN_POLL_INTERVAL="${FM_POLYTOKEN_POLL_INTERVAL:-0.1}" \
+    FM_POLYTOKEN_LICENSE_SETTLE=0 \
+    PTFAKE_STUB_PORT="$port" \
     PATH="$fakebin:$BASE_PATH" \
-    "$SPAWN" "$id" "$proj" --harness polytoken --model zai/glm-5.3-flash --effort low --mode no-mistakes --yolo off "$@" 2>&1
+    "$SPAWN" "$id" "$proj" --harness polytoken --model zai/glm-5.3-flash --effort low --mode no-mistakes --yolo off "$@" 2>&1 || rc=$?
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  return "$rc"
 }
 
 test_polytoken_launch_carries_the_hybrid_contract() {
@@ -943,15 +1006,24 @@ test_polytoken_launch_carries_the_hybrid_contract() {
   assert_contains "$launch" "$WT_DIR/.polytoken/facets" "the facets dir must be the worktree's project layer"
   assert_contains "$launch" "--model zai/glm-5.3-flash(low)" \
     "the polytoken command must receive the composed model reference"
-  assert_contains "$launch" "--prompt" "the launch must carry the brief via --prompt"
-  assert_contains "$launch" "Exercise Polytoken dispatch" \
-    "the brief text must ride the --prompt argument"
+  # The brief never rides the launch: --prompt waits for the TUI's first
+  # render, so it is delivered through the daemon's typed POST /prompt.
+  assert_not_contains "$launch" "--prompt" "the launch must not carry the brief via --prompt"
+  assert_not_contains "$launch" "Exercise Polytoken dispatch" \
+    "the brief text must not ride the launch argv"
+  [ "$(grep -c . "$CASE_DIR/prompts.log")" = 1 ] \
+    || fail "the brief must be posted exactly once, got: $(cat "$CASE_DIR/prompts.log")"
+  jq -e '.content | contains("Exercise Polytoken dispatch") and contains("launch-brief")' \
+    "$CASE_DIR/prompts.log" >/dev/null \
+    || fail "the posted prompt must carry the encoded launch brief, got: $(cat "$CASE_DIR/prompts.log")"
+  grep -qx 'POLYTOKEN_TEST_CLIPBOARD_PROBE_DISABLE=1' "$envlog" \
+    || fail "the launch must set the clipboard-probe knob so the TUI still renders"
   meta="$HOME_DIR/state/$id.meta"
   assert_grep 'harness=polytoken' "$meta" "the meta did not record its harness"
   assert_grep 'model=zai/glm-5.3-flash' "$meta" "the meta did not record its model"
   assert_grep 'effort=low' "$meta" "the meta did not record its effort axis"
   assert_grep 'polytoken_session=0czfake-echo' "$meta" "the meta did not record the session id"
-  assert_grep 'polytoken_port=49999' "$meta" "the meta did not record the port"
+  assert_grep "polytoken_port=$(cat "$CASE_DIR/stub-port")" "$meta" "the meta did not record the port"
   assert_grep "polytoken_credential=$HOME_DIR/state/$id.polytoken-sessions-v1/0czfake-echo/credential.json" \
     "$meta" "the meta did not record the credential path"
   assert_no_grep 'polytoken_config_dir=' "$meta" \
@@ -967,7 +1039,7 @@ test_polytoken_launch_carries_the_hybrid_contract() {
   awk -F= -v want='polytoken_session=0czfake-echo' \
     '$0 == want { found=1 } END { exit !found }' "$meta" \
     || fail "the session binding must be the exact session id"
-  awk -F= -v want='polytoken_port=49999' \
+  awk -F= -v want="polytoken_port=$(cat "$CASE_DIR/stub-port")" \
     '$0 == want { found=1 } END { exit !found }' "$meta" \
     || fail "the port binding must be the exact port"
   # The generated wiring landed where the launch says it did.
@@ -1144,6 +1216,146 @@ test_polytoken_readiness_failure_fails_loudly_and_cleans_up() {
   pass "fm-spawn: a failed readiness gate fails loudly, reaps, and retires its wiring"
 }
 
+# assert_polytoken_refused_and_rolled_back <id> <out> <rc> <reason-substring> <what>
+assert_polytoken_refused_and_rolled_back() {
+  local id=$1 out=$2 rc=$3 reason=$4 what=$5
+  [ "$rc" -ne 0 ] || fail "$what must fail the spawn (output: $out)"
+  assert_contains "$out" "did not start processing its brief" "$what must fail through the readiness gate"
+  assert_contains "$out" "$reason" "$what must name its reason"
+  assert_contains "$(cat "$CASE_DIR/tmux-calls.log")" "kill-window" "$what must close the endpoint it launched"
+  assert_contains "$(cat "$CASE_DIR/launch.log")" "reap 0czfake-echo --force" \
+    "$what must reap the session daemon it discovered"
+  assert_absent "$HOME_DIR/state/$id.meta" "$what must not leave a task record"
+  assert_absent "$WT_DIR/.polytoken/hooks.json" "$what must retire the worktree hook layer"
+  assert_not_contains "$out" "spawned $id" "$what must not report a successful spawn"
+}
+
+test_polytoken_missing_license_record_refuses_delivery() {
+  local id rec out rc=0
+  id="pt-nolicense-z10-$$"
+  rec=$(make_polytoken_spawn_case nolicense "$id")
+  read_polytoken_spawn_record "$rec"
+  rm -f "$HOME_DIR/.local/share/polytoken/license-acceptance.json"
+  out=$(run_polytoken_spawn "$CASE_DIR" "$HOME_DIR" "$PROJ_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id") || rc=$?
+  assert_polytoken_refused_and_rolled_back "$id" "$out" "$rc" "no readable polytoken license acceptance record" \
+    "a worker data home with no acceptance record"
+  [ ! -s "$CASE_DIR/prompts.log" ] || fail "no brief may be posted without an acceptance record"
+  # A record that names no revision proves nothing either.
+  id="pt-norevision-z11-$$"
+  rec=$(make_polytoken_spawn_case norevision "$id")
+  read_polytoken_spawn_record "$rec"
+  printf '{"schema_version":1}\n' > "$HOME_DIR/.local/share/polytoken/license-acceptance.json"
+  rc=0
+  out=$(run_polytoken_spawn "$CASE_DIR" "$HOME_DIR" "$PROJ_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id") || rc=$?
+  assert_polytoken_refused_and_rolled_back "$id" "$out" "$rc" "no readable polytoken license acceptance record" \
+    "an acceptance record naming no revision"
+  [ ! -s "$CASE_DIR/prompts.log" ] || fail "no brief may be posted on a record naming no revision"
+  pass "fm-spawn: polytoken posts no brief without a license acceptance record naming a revision"
+}
+
+test_polytoken_visible_license_dialog_refuses_delivery() {
+  local id rec out rc=0
+  id="pt-dialog-z12-$$"
+  rec=$(make_polytoken_spawn_case dialog "$id")
+  read_polytoken_spawn_record "$rec"
+  printf '   ┌License Agreement──────────┐\n   │Hi! Hello!                 │\n' > "$CASE_DIR/screen"
+  out=$(PTFAKE_CAPTURE_FILE="$CASE_DIR/screen" \
+    run_polytoken_spawn "$CASE_DIR" "$HOME_DIR" "$PROJ_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id") || rc=$?
+  assert_polytoken_refused_and_rolled_back "$id" "$out" "$rc" "License Agreement dialog" \
+    "a pane showing the license dialog"
+  [ ! -s "$CASE_DIR/prompts.log" ] || fail "no brief may be posted while the license dialog is visible"
+  pass "fm-spawn: polytoken posts no brief while the pane shows the license dialog"
+}
+
+test_polytoken_refused_prompt_fails_without_retry() {
+  local id rec out rc=0
+  id="pt-refused-z13-$$"
+  rec=$(make_polytoken_spawn_case refused "$id")
+  read_polytoken_spawn_record "$rec"
+  out=$(PTFAKE_STUB_PROMPT_CODE=500 \
+    run_polytoken_spawn "$CASE_DIR" "$HOME_DIR" "$PROJ_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id") || rc=$?
+  assert_polytoken_refused_and_rolled_back "$id" "$out" "$rc" "refused or did not confirm the brief prompt" \
+    "a daemon that refuses the brief prompt"
+  [ "$(grep -c . "$CASE_DIR/prompts.log")" = 1 ] \
+    || fail "a refused prompt may have landed, so it must never be retried: $(cat "$CASE_DIR/prompts.log")"
+  pass "fm-spawn: a refused polytoken brief prompt fails once, without a blind retry"
+}
+
+test_polytoken_unattached_tui_refuses_delivery() {
+  local id rec out rc=0
+  id="pt-notui-z14-$$"
+  rec=$(make_polytoken_spawn_case notui "$id")
+  read_polytoken_spawn_record "$rec"
+  out=$(PTFAKE_STUB_NO_TUI=1 FM_POLYTOKEN_READY_POLLS=3 FM_POLYTOKEN_POLL_INTERVAL=0 \
+    run_polytoken_spawn "$CASE_DIR" "$HOME_DIR" "$PROJ_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id") || rc=$?
+  assert_polytoken_refused_and_rolled_back "$id" "$out" "$rc" "never attached" \
+    "a session whose TUI never attaches"
+  [ ! -s "$CASE_DIR/prompts.log" ] || fail "no brief may be posted before the TUI attaches"
+  pass "fm-spawn: polytoken posts no brief before the pane's TUI attaches"
+}
+
+# polytoken_ring_case <target> <record> [expect-missing]: one real
+# fm_task_inbox_ring, run through in_polytoken_submit_pane so it sees the fake
+# pane; with expect-missing it first proves the target positively reads
+# missing (exit 9 otherwise).
+polytoken_ring_case() {
+  # shellcheck source=/dev/null
+  . "$ROOT/bin/fm-task-inbox-lib.sh"
+  if [ "${3:-}" = expect-missing ]; then
+    [ "$(fm_backend_agent_state tmux "$1")" = missing ] || exit 9
+  fi
+  fm_task_inbox_ring tmux "$1" "$2"
+}
+
+# The doorbell for a polytoken task rides POST /prompt and is never typed; a
+# polytoken record whose session ended rings nothing and reports a failed ring.
+test_polytoken_doorbell_rides_the_prompt_endpoint() {
+  local dir state port pid rc out
+  dir="$TMP_ROOT/doorbell"
+  state="$dir/state"
+  mkdir -p "$state/pt-bell.inbox" "$dir/sess"
+  make_polytoken_submit_pane "$dir/pane" polytoken
+  : > "$dir/prompts.log"
+  PTFAKE_STUB_PROMPT_LOG="$dir/prompts.log" rest_stub_start "$dir" > "$dir/handle" \
+    || fail "the REST stub must start"
+  read -r port pid < "$dir/handle"
+  printf '{"token":"stub-token"}\n' > "$dir/sess/credential.json"
+  printf 'harness=polytoken\npolytoken_port=%s\npolytoken_credential=%s\n' "$port" "$dir/sess/credential.json" \
+    > "$state/pt-bell.meta"
+  printf 'schema=fm-task-inbox.v1\n--\nhello\n' > "$state/pt-bell.inbox/001.msg"
+  cp "$dir/pane/screen" "$dir/pane/before"
+  rc=0
+  in_polytoken_submit_pane "$dir/pane" polytoken_ring_case win "$state/pt-bell.inbox/001.msg" || rc=$?
+  expect_code 0 "$rc" "a polytoken doorbell accepted by the daemon must report rung"
+  out=$(jq -r '.content' "$dir/prompts.log")
+  assert_contains "$out" "Firstmate instruction waiting" "the posted prompt must be the doorbell line"
+  assert_contains "$out" "'pt-bell.inbox'" "the doorbell must name the task's inbox"
+  cmp -s "$dir/pane/before" "$dir/pane/screen" || fail "a polytoken doorbell must never be typed into the pane"
+  # A TUI that never renders can read as an exited agent to a screen-detecting
+  # backend (Herdr, verified on 0.9.1); a bound session is still posted to
+  # rather than skipped. Here the pane positively reads missing.
+  : > "$dir/prompts.log"
+  rc=0
+  in_polytoken_submit_pane "$dir/pane" polytoken_ring_case lab:gone "$state/pt-bell.inbox/001.msg" expect-missing || rc=$?
+  [ "$rc" -ne 9 ] || fail "the unreadable-pane case must read as a missing agent to stay meaningful"
+  expect_code 0 "$rc" "a bound polytoken session must be rung even when its pane reads as exited"
+  assert_contains "$(jq -r '.content' "$dir/prompts.log")" "Firstmate instruction waiting" \
+    "the doorbell must reach a bound session whose pane reads as exited"
+  rm -f "$dir/sess/credential.json"
+  : > "$dir/prompts.log"
+  rc=0
+  in_polytoken_submit_pane "$dir/pane" polytoken_ring_case win "$state/pt-bell.inbox/001.msg" || rc=$?
+  expect_code 2 "$rc" "a polytoken task whose session ended must report a failed ring"
+  [ ! -s "$dir/prompts.log" ] || fail "an ended polytoken session must not be posted to"
+  rc=0
+  in_polytoken_submit_pane "$dir/pane" polytoken_ring_case lab:gone "$state/pt-bell.inbox/001.msg" || rc=$?
+  expect_code 3 "$rc" "an ended polytoken session on a missing pane must report the dead endpoint"
+  [ ! -s "$dir/prompts.log" ] || fail "an ended polytoken session must not be posted to"
+  cmp -s "$dir/pane/before" "$dir/pane/screen" || fail "an ended polytoken session must not fall back to typing"
+  kill "$pid" 2>/dev/null || true
+  pass "fm-task-inbox-lib: a polytoken doorbell rides POST /prompt and never falls back to typing"
+}
+
 # A gate failure after the task record is published rolls that record back, so
 # the slot claim the spawn took must go with it rather than name a task no
 # record describes.
@@ -1218,5 +1430,10 @@ test_polytoken_secondmate_is_refused
 test_polytoken_existing_project_hook_layer_refuses
 test_polytoken_whitespace_state_dir_refuses
 test_polytoken_readiness_failure_fails_loudly_and_cleans_up
+test_polytoken_missing_license_record_refuses_delivery
+test_polytoken_visible_license_dialog_refuses_delivery
+test_polytoken_refused_prompt_fails_without_retry
+test_polytoken_unattached_tui_refuses_delivery
+test_polytoken_doorbell_rides_the_prompt_endpoint
 test_polytoken_post_launch_failure_drops_its_slot_claim
 test_polytoken_spawn_arms_the_busy_contract

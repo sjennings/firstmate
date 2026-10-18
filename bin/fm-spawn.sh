@@ -650,16 +650,17 @@
 # per-task config dir is generated under state/ mirroring the operator's global
 # config with `default_permission_matcher` enforced to `bypass` (a project
 # config.yaml fully replaces the global config and no `new` flag reaches the
-# permission matcher, verified live). Its brief rides `--prompt` (auto-submitted
-# after the TUI attaches), its busy wiring is the worktree `.polytoken/hooks.json`
+# permission matcher, verified live). Its brief rides the session daemon's
+# `POST /prompt`, sent by the readiness gate after it binds the session and
+# passes the license checks, its busy wiring is the worktree `.polytoken/hooks.json`
 # binding the verified pre_user_prompt / pre_model_turn (open) and stop (close)
 # events to a generated no-argv writer (handlers receive no argv, verified live),
 # and its control verbs ride the daemon REST API with the session id, port, and
 # credential recorded into task metadata after launch through
 # `polytoken sessions --format json`. The license dialog is a BLOCKER by captain
 # decision (2026-10-07): `--accept-license-terms` is never passed, and the
-# readiness gate fails loudly on any first-start dialog the launch cannot get
-# past. bin/fm-polytoken-lib.sh owns every generated artifact and the verified
+# readiness gate refuses delivery and fails loudly without an acceptance record
+# or while the dialog is visible. bin/fm-polytoken-lib.sh owns every generated artifact and the verified
 # facts; .agents/skills/harness-adapters/references/harness/polytoken.md owns the
 # knowledge record. polytoken is crewmate/scout only and is refused for
 # --secondmate, like devin.
@@ -2916,8 +2917,12 @@ launch_template() {
   # id, port, and credential into task metadata after launch. `--facet` +
   # `--facets-dir` carry the worker role contract (a facet IS the system
   # prompt, and the generated one pins no model so `--model` stays
-  # authoritative); `--prompt` submits the brief after the TUI attaches, so no
-  # keyplane typing starts the work. `--accept-license-terms` is deliberately
+  # authoritative). The launch carries no brief: the readiness gate below
+  # delivers it through the daemon's `POST /prompt`, because `--prompt` waits
+  # for the TUI's first render (bin/fm-polytoken-lib.sh owns why).
+  # POLYTOKEN_TEST_CLIPBOARD_PROBE_DISABLE=1 is the vendor's test-only knob
+  # that keeps a 0.9.1 TUI rendering for watching and `/quit`; nothing in
+  # delivery relies on it. `--accept-license-terms` is deliberately
   # NEVER passed (captain decision 2026-10-07): the license dialog is a blocker
   # that the readiness gate below fails loudly on, never something a fleet
   # spawn answers. The leading shell loop clears every foreign ORCA_*/FM_*
@@ -2931,7 +2936,7 @@ launch_template() {
   # effort inside the model reference as `<model>(<effort>)`, so the effort
   # axis rides `__MODELFLAG__` after mapping to the nearest compatible
   # level in the installed model's selectable set.
-  polytoken) printf '%s' 'for _fmv in $(env | cut -d= -f1 | grep -E '\''^(ORCA_|FM_)'\''); do case $_fmv in FM_TASK_ID|FM_TASK_INBOX|FM_ZELLIJ_SESSION) ;; *) unset $_fmv ;; esac; done; env -u CLAUDECODE -u PI_CODING_AGENT -u GROK_AGENT -u FM_PI_HARNESS -u FM_OMP_HARNESS -u GEMINI_CLI -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u ATLASSIAN_AGENT_TYPE -u ROVODEV_CLI -u AGENT __POLYTOKENBIN__ --config-dir __POLYTOKENCONFIG__ new --sessions-dir __POLYTOKENSESSIONS__ --facet firstmate-worker --facets-dir __POLYTOKENFACETS__ __MODELFLAG__--prompt "$(__OPINPUT__ encode launch-brief < __BRIEF__)"' ;;
+  polytoken) printf '%s' 'for _fmv in $(env | cut -d= -f1 | grep -E '\''^(ORCA_|FM_)'\''); do case $_fmv in FM_TASK_ID|FM_TASK_INBOX|FM_ZELLIJ_SESSION) ;; *) unset $_fmv ;; esac; done; env -u CLAUDECODE -u PI_CODING_AGENT -u GROK_AGENT -u FM_PI_HARNESS -u FM_OMP_HARNESS -u GEMINI_CLI -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u ATLASSIAN_AGENT_TYPE -u ROVODEV_CLI -u AGENT POLYTOKEN_TEST_CLIPBOARD_PROBE_DISABLE=1 __POLYTOKENBIN__ --config-dir __POLYTOKENCONFIG__ new --sessions-dir __POLYTOKENSESSIONS__ --facet firstmate-worker --facets-dir __POLYTOKENFACETS__ __MODELFLAG__' ;;
   # Command Code receives the typed launch envelope after -- as its initial
   # message. --yolo bypasses permission prompts, --trust skips the folder-trust
   # prompt of a fresh worktree, and --skip-onboarding skips taste onboarding.
@@ -5626,26 +5631,51 @@ agy_spawn_fail() {  # <detail>
   rovo_endpoint_cleanup
 }
 
-# polytoken's launch-then-confirm gate, in the same shape as agy's: the brief
-# rides the launch command (--prompt submits it after the TUI attaches), so
-# readiness is positive proof the brief is being processed rather than proof a
-# key was typed. The proof is semantic, not a screen scrape: the busy record
-# must advance past the fm-spawn seed to a polytoken-hook event (pre_user_prompt
-# fires the moment the brief turn is submitted, verified live), which is exactly
-# the verdict the supervisor reads. A pane parked on a first-start dialog the
-# launch cannot get past - the license dialog, which the captain's decision
-# (2026-10-07) makes a blocker that fleet spawns never auto-accept - never posts
-# the first hook event, so the gate fails loudly there. Session discovery is
-# folded into the same poll: `polytoken sessions --format json` scoped to this
-# task's config and sessions roots binds the pane's session id, port, and
-# credential file (a TUI-attached launch never prints them on the spawning
-# side, verified live).
+# polytoken's launch-then-deliver-then-confirm gate. The launch carries no
+# brief; this gate delivers it through the session daemon's typed
+# `POST /prompt` (bin/fm-polytoken-lib.sh owns why `--prompt` and typed keys
+# are not used), so delivery never depends on the TUI rendering. Steps, all
+# inside one bounded poll budget:
+#   1. Bind the session: `polytoken sessions --format json` scoped to this
+#      task's config and sessions roots yields the session id, port, and
+#      credential file (a TUI-attached launch never prints them, verified).
+#   2. Wait for the typed TUI attachment lease (GET /tui-attachment), the
+#      point after which a first-start license dialog can be on screen.
+#   3. Admit the brief only when the worker's data home holds the vendor's
+#      license-acceptance record naming a revision, and refuse while the pane
+#      visibly shows the License Agreement dialog. The daemon is up and its
+#      REST API answers while that dialog is up (verified on 0.9.1), so
+#      without these checks a REST delivery would bypass the captain's 2026-10-07 decision that the
+#      dialog is a blocker fleet spawns never answer. Residual: a new license
+#      revision is invisible to the record, so only the rendered-dialog check
+#      can catch a revision bump.
+#   4. POST the encoded launch brief once; only a connection that was never
+#      made (nothing reached the daemon) is retried.
+#   5. Confirm semantically: the busy record must advance past the fm-spawn
+#      seed to a polytoken-hook event (pre_user_prompt fires as the daemon
+#      admits the prompt), and the dialog check runs once more.
+# Any failed step leaves POLYTOKEN_READY_DETAIL naming it for the caller's
+# loud failure and rollback.
 POLYTOKEN_SESSION_ID=
 POLYTOKEN_SESSION_PORT=
 POLYTOKEN_SESSION_CREDENTIAL=
+POLYTOKEN_READY_DETAIL=
+
+polytoken_pane_shows_license_dialog() {
+  local pane
+  if fm_backend_visible_capture_supported "$BACKEND"; then
+    pane=$(fm_backend_visible_capture "$BACKEND" "$T" "$W" 2>/dev/null) || pane=
+  else
+    pane=$(fm_backend_capture "$BACKEND" "$T" 120 "$W" 2>/dev/null) || pane=
+  fi
+  printf '%s\n' "$pane" | fm_polytoken_license_dialog_visible
+}
 
 polytoken_wait_for_ready() {
-  local discovered record i=0 max=${FM_POLYTOKEN_READY_POLLS:-120} interval=${FM_POLYTOKEN_POLL_INTERVAL:-0.5}
+  local discovered record token='' brief rc attached=0 sent=0 i=0
+  local max=${FM_POLYTOKEN_READY_POLLS:-120} interval=${FM_POLYTOKEN_POLL_INTERVAL:-0.5}
+  local settle=${FM_POLYTOKEN_LICENSE_SETTLE:-1}
+  POLYTOKEN_READY_DETAIL=
   while [ "$i" -lt "$max" ]; do
     if [ -z "$POLYTOKEN_SESSION_ID" ]; then
       discovered=$(fm_polytoken_session_for_project "$POLYTOKEN_BIN" \
@@ -5661,15 +5691,70 @@ $discovered
 EOF
       fi
     fi
-    if [ -n "$POLYTOKEN_SESSION_ID" ]; then
-      record=$(fm_busy_record_read "$STATE_REAL" "$ID" 2>/dev/null) || record=
-      case "$record" in
-        *" polytoken-hook "*) return 0 ;;
-      esac
+    if [ -n "$POLYTOKEN_SESSION_ID" ] && [ -z "$token" ]; then
+      token=$(fm_polytoken_credential_token "$POLYTOKEN_SESSION_CREDENTIAL") || token=
+    fi
+    if [ -n "$token" ] && fm_polytoken_tui_attached "$POLYTOKEN_SESSION_PORT" "$token"; then
+      attached=1
+      break
     fi
     i=$((i + 1))
     [ "$i" -ge "$max" ] || sleep "$interval"
   done
+  if [ "$attached" -ne 1 ]; then
+    if [ -z "$POLYTOKEN_SESSION_ID" ]; then
+      POLYTOKEN_READY_DETAIL="no polytoken session for this task ever appeared in its sessions root"
+    else
+      POLYTOKEN_READY_DETAIL="the pane's TUI never attached to session $POLYTOKEN_SESSION_ID"
+    fi
+    return 1
+  fi
+  if ! fm_polytoken_license_accepted; then
+    POLYTOKEN_READY_DETAIL="no readable polytoken license acceptance record names a revision under $(fm_polytoken_data_dir), so the brief was not delivered; accepting the first-start license dialog is the operator's decision"
+    return 1
+  fi
+  sleep "$settle"
+  if polytoken_pane_shows_license_dialog; then
+    POLYTOKEN_READY_DETAIL="the pane shows the polytoken License Agreement dialog, so the brief was not delivered; accepting it is the operator's decision"
+    return 1
+  fi
+  brief=$("$FM_ROOT/bin/fm-operational-input.sh" encode launch-brief < "$BRIEF") || {
+    POLYTOKEN_READY_DETAIL="the launch brief could not be encoded"
+    return 1
+  }
+  while [ "$i" -lt "$max" ]; do
+    rc=0
+    fm_polytoken_post_prompt "$POLYTOKEN_SESSION_PORT" "$token" "$brief" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      sent=1
+      break
+    fi
+    if [ "$rc" -ne 7 ]; then
+      POLYTOKEN_READY_DETAIL="the session daemon on port $POLYTOKEN_SESSION_PORT refused or did not confirm the brief prompt"
+      return 1
+    fi
+    i=$((i + 1))
+    [ "$i" -ge "$max" ] || sleep "$interval"
+  done
+  if [ "$sent" -ne 1 ]; then
+    POLYTOKEN_READY_DETAIL="the session daemon on port $POLYTOKEN_SESSION_PORT never accepted a connection for the brief prompt"
+    return 1
+  fi
+  while [ "$i" -lt "$max" ]; do
+    record=$(fm_busy_record_read "$STATE_REAL" "$ID" 2>/dev/null) || record=
+    case "$record" in
+      *" polytoken-hook "*)
+        if polytoken_pane_shows_license_dialog; then
+          POLYTOKEN_READY_DETAIL="the pane shows the polytoken License Agreement dialog after delivery; accepting it is the operator's decision"
+          return 1
+        fi
+        return 0
+        ;;
+    esac
+    i=$((i + 1))
+    [ "$i" -ge "$max" ] || sleep "$interval"
+  done
+  POLYTOKEN_READY_DETAIL="the daemon accepted the brief prompt but no polytoken hook event ever reached the busy record"
   return 1
 }
 
@@ -7689,12 +7774,12 @@ if [ "$HARNESS" = agy ]; then
 fi
 # polytoken's gate is semantic and scoped to the canonical template: a raw
 # launch command never carries the generated wiring's flags, so it is gated
-# off exactly like the arm above. The failure detail names the one known
-# first-start blocker (the license dialog) so a supervisor can tell a
-# blocked launch from a wedged one.
+# off exactly like the arm above. The failure detail names the step that
+# stopped (a missing acceptance record or a visible license dialog is the
+# license blocker) so a supervisor can tell a blocked launch from a wedged one.
 if [ "$HARNESS" = polytoken ] && [ "$RAW_LAUNCH" -eq 0 ]; then
   if ! polytoken_wait_for_ready; then
-    polytoken_spawn_fail "polytoken did not start processing its brief in window $T (a first-start license dialog is the one known blocker; it is never auto-accepted)"
+    polytoken_spawn_fail "polytoken did not start processing its brief in window $T: ${POLYTOKEN_READY_DETAIL:-the readiness gate stopped} (the first-start license dialog is never auto-accepted)"
     exit 1
   fi
   if ! spawn_record_polytoken_session; then

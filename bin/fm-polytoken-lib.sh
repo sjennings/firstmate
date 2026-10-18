@@ -13,8 +13,11 @@
 #   - Polytoken is a daemon-plus-TUI. `polytoken new` spawns a per-session
 #     daemon (comm exactly `polytoken`) and attaches the TUI; the daemon
 #     exposes a typed, bearer-authenticated REST control plane on a per-session
-#     port. `--prompt` submits the brief as the first prompt after the TUI
-#     attaches, so a pane launch needs no keyplane typing to start work.
+#     port. The brief and the doorbell ride `POST /prompt` on that port (see
+#     the typed prompt delivery section below), so delivery never depends on
+#     the TUI rendering. The launch sets the vendor's test-only
+#     POLYTOKEN_TEST_CLIPBOARD_PROBE_DISABLE=1 so a 0.9.1 TUI still renders
+#     for watching and the `/quit` exit; delivery does not rely on it.
 #   - A root `--config-dir` passed to a runtime command becomes the daemon's
 #     project config dir and the config.yaml inside it REPLACES the global
 #     config entirely - no merge, and no `--global-config-dir` reaches the
@@ -438,6 +441,100 @@ fm_polytoken_rest_json() {  # <method> <port> <credential-token> <path> [json-bo
     ${body:+-H "Content-Type: application/json" -d "$body"} \
     --connect-timeout 2 --max-time 10 \
     "http://127.0.0.1:$port$path" 2>/dev/null <<<"Authorization: Bearer $token"
+}
+
+# --- typed prompt delivery (bin/fm-spawn.sh brief, bin/fm-task-inbox-lib.sh doorbell)
+#
+# The brief and the steering doorbell ride `POST /prompt` on the session's own
+# daemon, never keys typed into the TUI and never `new --prompt`, which the TUI
+# submits only after its first render (0.9.1 never rendered in a Herdr or
+# default tmux pane: its startup OSC 52 clipboard-read probe blocks forever on
+# a terminal that never answers). The daemon answers 202 and queues a prompt
+# behind a running turn itself, which is exactly the doorbell semantics.
+#
+# The license gate lives only in the TUI: the daemon is up and its REST API
+# answers while the first-start License Agreement dialog is still showing
+# (verified on 0.9.1; no prompt was ever posted there to test it), and no
+# daemon or CLI surface reports acceptance. So the brief is
+# admitted only when the worker's data home holds the vendor's acceptance
+# record naming a revision, and refused while the pane visibly shows the
+# dialog. Residual: a new license revision is invisible to the record check,
+# so only the rendered-dialog check can catch a revision bump.
+
+# The data dir polytoken reads its acceptance record from, resolved the way
+# the global config dir is (XDG_DATA_HOME, then HOME).
+fm_polytoken_data_dir() {
+  printf '%s/polytoken' "${XDG_DATA_HOME:-${HOME:-}/.local/share}"
+}
+
+# fm_polytoken_license_accepted: the acceptance record exists, parses, and
+# names a nonempty revision. Says nothing about whether that revision is the
+# current one (no surface exposes the current revision).
+fm_polytoken_license_accepted() {  # [data-dir]
+  local dir=${1:-$(fm_polytoken_data_dir)} rev
+  command -v jq >/dev/null 2>&1 || return 1
+  rev=$(jq -r '.accepted_revision // empty | tostring' "$dir/license-acceptance.json" 2>/dev/null) || return 1
+  [ -n "$rev" ]
+}
+
+# fm_polytoken_license_dialog_visible: pane text on stdin shows the License
+# Agreement dialog. Best-effort and rendering-based by necessity; a match
+# refuses delivery, a miss proves nothing.
+fm_polytoken_license_dialog_visible() {
+  grep -q 'License Agreement'
+}
+
+# fm_polytoken_tui_attached: GET /tui-attachment reports an active lease, the
+# typed point after which the TUI's license dialog can be on screen.
+fm_polytoken_tui_attached() {  # <port> <credential-token>
+  local snap
+  snap=$(fm_polytoken_rest_json GET "$1" "$2" /tui-attachment) || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  printf '%s' "$snap" | jq -e '.active != null' >/dev/null 2>&1
+}
+
+# fm_polytoken_post_prompt: one `POST /prompt` with <text> as its content.
+# Returns 0 on a 2xx, 7 when the connection was never made (nothing reached
+# the daemon, so a retry cannot double-submit), and 1 for every other outcome
+# (a refusal, or a request that may have landed). The body rides a 0600 temp
+# file and the bearer header rides stdin, so neither the brief nor the token
+# reaches argv.
+fm_polytoken_post_prompt() {  # <port> <credential-token> <text>
+  local port=$1 token=$2 text=$3 body code rc=0
+  command -v jq >/dev/null 2>&1 || return 1
+  body=$(umask 077 && mktemp "${TMPDIR:-/tmp}/fm-polytoken-prompt.XXXXXX") || return 1
+  if ! jq -cn --arg c "$text" '{content: $c}' >"$body"; then
+    rm -f "$body"
+    return 1
+  fi
+  code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+    -H @- -H "Content-Type: application/json" --data-binary @"$body" \
+    --connect-timeout 2 --max-time 15 \
+    "http://127.0.0.1:$port/prompt" 2>/dev/null <<<"Authorization: Bearer $token") || rc=$?
+  rm -f "$body"
+  [ "$rc" -ne 7 ] || return 7
+  [ "$rc" -eq 0 ] || return 1
+  case "$code" in
+    2*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# fm_polytoken_task_binding: the session binding a task record carries for a
+# polytoken task, printed as "<port>\t<credential-token>". Returns 1 when the
+# record is absent or names another harness, and 2 for a polytoken task whose
+# binding is incomplete or whose session ended (its credential is gone).
+fm_polytoken_task_binding() {  # <meta-file>
+  local meta=$1 harness port cred token
+  [ -f "$meta" ] || return 1
+  harness=$(awk -F= '$1 == "harness" { v = substr($0, index($0, "=") + 1) } END { print v }' "$meta")
+  [ "$harness" = polytoken ] || return 1
+  port=$(awk -F= '$1 == "polytoken_port" { v = substr($0, index($0, "=") + 1) } END { print v }' "$meta")
+  cred=$(awk -F= '$1 == "polytoken_credential" { v = substr($0, index($0, "=") + 1) } END { print v }' "$meta")
+  case "$port" in ''|*[!0-9]*) return 2 ;; esac
+  token=$(fm_polytoken_credential_token "$cred") || return 2
+  [ -n "$token" ] || return 2
+  printf '%s\t%s\n' "$port" "$token"
 }
 
 # fm_polytoken_turn_settled: GET /sync's `turn` is null (no turn running).

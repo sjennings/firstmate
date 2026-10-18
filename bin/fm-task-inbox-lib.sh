@@ -102,6 +102,8 @@ _FM_TASK_INBOX_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_FM_TASK_INBOX_LIB_DIR/fm-wake-lib.sh"
 # shellcheck source=/dev/null
 . "$_FM_TASK_INBOX_LIB_DIR/fm-backend.sh"
+# shellcheck source=/dev/null
+. "$_FM_TASK_INBOX_LIB_DIR/fm-polytoken-lib.sh"
 
 FM_TASK_INBOX_SCHEMA='fm-task-inbox.v1'
 FM_TASK_INBOX_GRACE_DEFAULT=90
@@ -386,11 +388,28 @@ fm_task_inbox_doorbell_line() {  # <record-path>
 # whose Enter never landed, so on an agent not reported busy it is submitted
 # rather than skipped; skipping it would block every later ring. On both paths
 # a lost first Enter gets one confirmed retry.
+# A polytoken task's doorbell is never typed: it rides the session daemon's
+# `POST /prompt` through the binding its task record carries, which the daemon
+# queues behind a running turn itself (bin/fm-polytoken-lib.sh owns why), so
+# neither the pane liveness read nor a composer read applies to a bound
+# session - both depend on the TUI rendering. A refused post returns 2 and the
+# watcher re-rings; a polytoken record with no usable binding (its session
+# ended or was never bound) never types, and returns 3 on a dead or missing
+# pane and 2 otherwise.
 fm_task_inbox_ring() {  # <backend> <target> <record-path> [expected-label]
-  local backend=$1 target=$2 rec=$3 label=${4:-} line cstate verdict
+  local backend=$1 target=$2 rec=$3 label=${4:-} line cstate verdict inbox binding brc=0
+  inbox=${rec%/*}
+  inbox=${inbox%/handled}
+  binding=$(fm_polytoken_task_binding "${inbox%.inbox}.meta") || brc=$?
+  if [ "$brc" -eq 0 ]; then
+    line=$(fm_task_inbox_doorbell_line "$rec") || return 2
+    fm_polytoken_post_prompt "${binding%%$'\t'*}" "${binding#*$'\t'}" "$line" || return 2
+    return 0
+  fi
   case "$(fm_backend_agent_state "$backend" "$target" 2>/dev/null || true)" in
     dead|missing) return 3 ;;
   esac
+  [ "$brc" -ne 2 ] || return 2
   if ! line=$(fm_task_inbox_doorbell_line "$rec"); then
     return 2
   fi

@@ -5,7 +5,7 @@ Audience: maintainer verification.
 The [adapter reference](../../.agents/skills/harness-adapters/references/harness/polytoken.md) owns operating facts; executable owners carry launch and state mechanics.
 The adapter selects capabilities from the installed binary and has no Polytoken version gate.
 The release numbers below identify evidence, not requirements.
-This record covers crewmates and scouts on the tmux TUI-pane-plus-REST-control path.
+This record covers crewmates and scouts on the tmux TUI-pane-plus-REST-control path, plus the Herdr-lab brief and doorbell delivery evidence below.
 Primary, secondmate, and native Herdr pane placement are outside this guarantee.
 
 ## Refresh commands
@@ -27,6 +27,44 @@ All Polytoken session, configuration, cache, and log writes stay in that lab.
 The guard uses a scratch clone and a `treehouse` stand-in rather than touching a shared worktree pool.
 Its real Firstmate verbs cover spawn, durable inbox delivery and acknowledgement, interrupt, relaunch, exit, and teardown.
 Failures identify the installed Polytoken version.
+
+## Brief and doorbell delivery
+
+On 2026-10-17, macOS arm64 with `polytoken 0.9.1`, herdr 0.9.5, and tmux 3.7c, the 0.9.1 TUI never rendered in a Herdr lab pane or a default tmux pane.
+Its last write before blocking in `read()` was an OSC 52 clipboard-read probe, `ESC ] 52 ; c ; ? BEL` (inside a tmux DCS passthrough under tmux), which neither pane host answers.
+The TUI log ended at `tui attached to daemon session` and `terminal lifecycle entered`, and the session `log.jsonl` held no prompt, because `new --prompt` is submitted only after the first render.
+Writing a synthetic reply into the stuck pane with `tmux send-keys -H 1b 5d 35 32 3b 63 3b 07` unblocked it at once, and the TUI then submitted its `--prompt` turn.
+No config key controls the probe; the binary's test-only `POLYTOKEN_TEST_CLIPBOARD_PROBE_DISABLE=1` let the same TUI render and submit normally.
+The launch sets that knob only so the pane renders for watching and `/quit`; if a release removes it, delivery is unaffected and only rendered surfaces regress.
+
+The brief and the steering doorbell therefore ride `POST /prompt` (`{"content": ...}`, answered 202 and queued behind a running turn by the daemon, per `polytoken print openapi`).
+With no license acceptance record, the TUI attached to an already-running daemon and then rendered the License Agreement dialog, and it emitted no OSC 52 probe before the dialog.
+While that dialog showed, the session was listed and its REST API answered, `GET /tui-attachment`, `/client-context`, `/sync/summary`, and `/state` matched a session stuck on the probe, and `polytoken doctor --format json` had no license check.
+`polytoken new --no-attach` with no acceptance record printed `session_id=... port=...` and exited 0.
+The only acceptance evidence is `$XDG_DATA_HOME/polytoken/license-acceptance.json`, for example `{"schema_version":1,"accepted_revision":"3"}`; no surface exposes the current revision.
+So delivery requires a record naming a revision and refuses while the pane shows `License Agreement`; a revision bump with an older record on file is caught only by that rendered check.
+
+A Herdr pane whose TUI has not rendered reads as an exited agent to Herdr's screen detection (`agent get` reports no agent), so the doorbell posts to a bound session before any pane liveness read.
+
+The Herdr-lab proof used `bin/fm-herdr-lab.sh` for a named session, a lab `FM_HOME` with `config/backend` set to `herdr`, a scratch clone entered by a `treehouse` stand-in, and `XDG_DATA_HOME` pointing at a copy of the operator's acceptance record:
+
+```sh
+FM_HOME=<lab> HERDR_SESSION=<fm-lab-session> FM_SPAWN_NO_GUARD=1 bin/fm-spawn.sh ptherdr <scratch-project> --scout --harness polytoken --model zai/glm-5.3-flash --effort low --backend herdr
+FM_HOME=<lab> HERDR_SESSION=<fm-lab-session> bin/fm-send.sh ptherdr "<acknowledge the inbox, then write steered into steer.txt>"
+FM_HOME=<lab> HERDR_SESSION=<fm-lab-session> bin/fm-control.sh ptherdr exit
+```
+
+```text
+spawned ptherdr harness=polytoken kind=scout window=fm-lab-fm-polytoken-han-42789-7113:w1:p2 ...
+brief delivered into session 0dvfce-boxer (session log carries the FIRSTMATE_OP launch brief)
+brief executed: answer.txt=80235
+steer delivered and acknowledged: steer.txt=steered, handled=001.msg
+pane renders the TUI (worker facet visible)
+stopped ptherdr harness=polytoken backend=herdr ...
+```
+
+The same run with the knob stripped by a wrapper left the pane blank (0 nonblank rows) and still delivered the brief (`answer.txt=80235`) and the steer (`steer.txt=steered`, `handled=001.msg`).
+The tmux live guard passed all ten checks on 0.9.1, including relaunch, interrupt, exit, and teardown.
 
 ## Session model proof
 
@@ -59,6 +97,7 @@ A durable `fm-send` message was read and moved into `handled/` before interrupt 
 Relaunch bound a different session and completed the requested calculation with `493`.
 Exit reported `stopped`; teardown removed task metadata and generated Polytoken artifacts.
 No license or trust prompt blocked this run; the existing operator acceptance was sufficient.
+That 0.9.0 run delivered the brief through `new --prompt`; the delivery section above supersedes it.
 
 ## Earlier surface evidence
 
