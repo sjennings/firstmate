@@ -1441,6 +1441,67 @@ assert_contains "$out" 'candidate: cursor:cursor-grok-4.6-medium  provider=curso
 assert_contains "$out" '  note: 2 eligible candidate(s) unranked (cursor, kimi)' "no-applicable-row uncertainty appears in the clear-result note"
 pass "partial and missing quota evidence remain eligible but unranked"
 
+# --- fixed-scalar and credit-balance rows rank against windowed rows ----------
+# quota-axi publishes Mistral as an unknown all_models row and DeepSeek as an
+# unknown credits row, each with a known numeric selection.spendPriority.
+reset_log
+FIXED_RULES="$TMP_ROOT/fixed-scalar-rules.json"
+jq '.rules[3].use += [
+  {"harness":"polytoken","model":"mistral/zai-glm-5-3-flash","provider":"mistral"},
+  {"harness":"polytoken","model":"deepseek/deepseek-v4-flash","provider":"deepseek"}
+]' "$BASE_RULES" > "$FIXED_RULES"
+cp "$FIXED_RULES" "$RULES"
+write_quota_fixed() {  # <path> <mistral all_models row> <deepseek credits row>
+  write_quota "$1" -1
+  jq --argjson mistral "$2" --argjson deepseek "$3" '.providers += [
+    {"provider":"mistral","state":{"status":"fresh"},"quotaSemantics":{"status":"known","effectiveAvailability":[$mistral]}},
+    {"provider":"deepseek","state":{"status":"fresh"},"credits":{"remaining":29.97,"unit":"usd","available":true},"quotaSemantics":{"status":"known","effectiveAvailability":[$deepseek]}}
+  ]' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
+}
+MISTRAL_FIXED='{"scope":"all_models","status":"unknown","runway":{"status":"unknown"},"selection":{"status":"known","spendPriority":0}}'
+DEEPSEEK_ZERO='{"scope":"credits","status":"unknown","runway":{"status":"unknown"},"selection":{"status":"known","spendPriority":0}}'
+DEEPSEEK_LOW='{"scope":"credits","status":"unknown","runway":{"status":"unknown"},"selection":{"status":"known","spendPriority":-50}}'
+DEEPSEEK_EXHAUSTED='{"scope":"credits","status":"unknown","runway":{"status":"exhausted_now"},"selection":{"status":"known","spendPriority":-50}}'
+MISTRAL_UNKNOWN_SELECTION='{"scope":"all_models","status":"unknown","runway":{"status":"unknown"},"selection":{"status":"unknown"}}'
+write_response "$RESPONSE" rule_4 0.9
+
+FIXED="$TMP_ROOT/fixed-scalar.json"
+write_quota_fixed "$FIXED" "$MISTRAL_FIXED" "$DEEPSEEK_LOW"
+TYPESAFE_API_KEY=$KEY QUOTA_AXI_FIXTURE="$FIXED" run code out err "$BRIEF"
+assert_contains "$out" '  status: clear' "a fixed-scalar row can produce a clear result"
+assert_contains "$out" 'candidate: polytoken:mistral/zai-glm-5-3-flash  provider=mistral  scope=all_models  remaining=-%  spendPriority=0  runway=unknown  -> eligible' "an unknown all_models row with a known spendPriority ranks without an invented percent"
+assert_contains "$out" 'candidate: polytoken:deepseek/deepseek-v4-flash  provider=deepseek  scope=credits  remaining=-%  spendPriority=-50  runway=unknown  -> eligible' "a credits-only provider ranks on its credits row"
+assert_contains "$out" "  profile: --harness 'polytoken' --model 'mistral/zai-glm-5-3-flash'" "spendPriority 0 outranks overdrawn windowed candidates"
+assert_contains "$out" '  note: 1 eligible candidate(s) unranked (kimi)' "fixed-scalar candidates are not reported as unranked"
+
+DEEPSEEK_WINS="$TMP_ROOT/fixed-scalar-deepseek.json"
+write_quota_fixed "$DEEPSEEK_WINS" "$MISTRAL_UNKNOWN_SELECTION" "$DEEPSEEK_ZERO"
+TYPESAFE_API_KEY=$KEY QUOTA_AXI_FIXTURE="$DEEPSEEK_WINS" run code out err "$BRIEF"
+assert_contains "$out" 'candidate: polytoken:mistral/zai-glm-5-3-flash  provider=mistral  scope=all_models  remaining=-%  spendPriority=-  runway=-  -> eligible, unranked: quota row all_models unknown: not rankable: disclosed uncertainty' "an unknown row without a known selection stays unranked"
+assert_contains "$out" "  profile: --harness 'polytoken' --model 'deepseek/deepseek-v4-flash'" "a credits row at spendPriority 0 outranks overdrawn windowed candidates"
+assert_contains "$out" '  note: 2 eligible candidate(s) unranked (kimi, mistral)' "the unknown-selection provider is disclosed as unranked"
+
+DEEPSEEK_OUT="$TMP_ROOT/fixed-scalar-deepseek-exhausted.json"
+write_quota_fixed "$DEEPSEEK_OUT" "$MISTRAL_UNKNOWN_SELECTION" "$DEEPSEEK_EXHAUSTED"
+TYPESAFE_API_KEY=$KEY QUOTA_AXI_FIXTURE="$DEEPSEEK_OUT" run code out err "$BRIEF"
+assert_contains "$out" 'candidate: polytoken:deepseek/deepseek-v4-flash  provider=deepseek  scope=credits  remaining=-%  spendPriority=-  runway=exhausted_now  -> not eligible: runway exhausted_now at credits' "an exhausted credits row vetoes the candidate"
+assert_contains "$out" "  profile: --harness 'claude' --model 'sonnet' --effort 'high'" "a windowed candidate wins once credits are exhausted"
+
+DEEPSEEK_TIE="$TMP_ROOT/fixed-scalar-tie.json"
+write_quota_fixed "$DEEPSEEK_TIE" "$MISTRAL_FIXED" "$DEEPSEEK_ZERO"
+TYPESAFE_API_KEY=$KEY QUOTA_AXI_FIXTURE="$DEEPSEEK_TIE" run code out err "$BRIEF"
+assert_contains "$out" '  reason: genuine spendPriority tie' "equal fixed scalars are a genuine tie, not array order"
+
+CREDITS_BESIDE_WINDOW="$TMP_ROOT/fixed-scalar-credits-beside-window.json"
+write_quota_fixed "$CREDITS_BESIDE_WINDOW" "$MISTRAL_FIXED" "$DEEPSEEK_ZERO"
+jq '(.providers[] | select(.provider == "deepseek") | .quotaSemantics.effectiveAvailability) += [
+  {"scope":"model:other","status":"known","effectivePercentRemaining":50,"runway":{"status":"through_reset"},"selection":{"spendPriority":0.9}}
+]' "$CREDITS_BESIDE_WINDOW" > "$CREDITS_BESIDE_WINDOW.tmp" && mv "$CREDITS_BESIDE_WINDOW.tmp" "$CREDITS_BESIDE_WINDOW"
+TYPESAFE_API_KEY=$KEY QUOTA_AXI_FIXTURE="$CREDITS_BESIDE_WINDOW" run code out err "$BRIEF"
+assert_contains "$out" 'candidate: polytoken:deepseek/deepseek-v4-flash  provider=deepseek  -> eligible, unranked: no applicable quota row for provider deepseek: disclosed uncertainty' "a credits row never stands in for a provider that publishes model scopes"
+cp "$BASE_RULES" "$RULES"
+pass "known fixed-scalar and credits selections rank; unknown selections stay unranked"
+
 # --- provider-wide rows remain bounds beside exact model rows ------------------
 reset_log
 BOUNDED="$TMP_ROOT/bounded.json"

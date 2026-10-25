@@ -581,12 +581,22 @@ RESULT=$(jq -n --arg floor "$CONFIDENCE_FLOOR" --argjson lat "$LAT_MS" --arg non
   def lane_of($c): quota_lane($c.harness; $c.model);
   def measured($p; $lane):
     (prov($p; $lane) != null and (["known", "partial"] | index(prov($p; $lane).quotaSemantics.status)) != null);
+  # A credit-balance provider that publishes no provider-wide or model scope
+  # (DeepSeek) is bounded by its credits scope alone.
   def applicable($p; $lane; $m):
     (bare($m)) as $bare |
-    [rows($p; $lane)[] | select(
-      .scope == "all_models" or .scope == "all_products" or
-      ($m != "" and (.scope == ("model:" + $bare) or .scope == ("product:" + $bare)))
-    )];
+    if any(rows($p; $lane)[]; (.scope // "") | test("^(all_models|all_products)$|^(model|product):")) then
+      [rows($p; $lane)[] | select(
+        .scope == "all_models" or .scope == "all_products" or
+        ($m != "" and (.scope == ("model:" + $bare) or .scope == ("product:" + $bare)))
+      )]
+    else [rows($p; $lane)[] | select(.scope == "credits")]
+    end;
+  # A row ranks when its quota is known, or when quota-axi publishes a known
+  # numeric selection for it anyway (a fixed spendPriority with no measured
+  # percent, such as Mistral or DeepSeek credits).
+  def rankable_row: .status == "known" or
+    (.selection.status == "known" and (.selection.spendPriority | type) == "number");
   def floor_state($f; $p; $lane):
     if $f == null then "none"
     elif prov($p; $lane) == null or (measured($p; $lane) | not) then "unknown"
@@ -632,8 +642,8 @@ RESULT=$(jq -n --arg floor "$CONFIDENCE_FLOOR" --argjson lat "$LAT_MS" --arg non
       elif $profile_floor_state == "unknown" then
         ([rows($p; $lane)[] | select(.scope == $c.floor.scope)] | first) as $floor_row |
         {profile: $c, provider: $p, bounds: $bounds, scope: $c.floor.scope, pct: ($floor_row.effectivePercentRemaining // null), runway: ($floor_row.runway.status // null), eligible: true, unranked: true, unknown: true, reason: "profile floor \($c.floor.scope) is unverifiable: not rankable"}
-      elif any($rows[]; .status != "known") then
-        ($rows | map(select(.status != "known")) | first) as $bad |
+      elif any($rows[]; rankable_row | not) then
+        ($rows | map(select(rankable_row | not)) | first) as $bad |
         {profile: $c, provider: $p, bounds: $bounds, scope: $bad.scope, eligible: true, unranked: true, unknown: true, reason: "quota row \($bad.scope) unknown: not rankable"}
       elif any($rows[]; (.selection.spendPriority | type) != "number") then
         ($rows | map(select((.selection.spendPriority | type) != "number")) | first) as $bad |
