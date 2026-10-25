@@ -1239,6 +1239,37 @@ test_matrix_kimi_bordered_shell_glyph_box() {
   pass "matrix: kimi's bordered shell-glyph box reads empty through the shared owner (spawn's fourth copy retired)"
 }
 
+test_matrix_kimi_232_footer_under_the_box() {
+  # Kimi 2.3.2 draws a permission-mode bar and a context-usage row directly
+  # under its box (tests/captures/kimi-code-2.3.2/README.md). The cursorless
+  # staleness probe must read that pair as Kimi's furniture, or every Kimi
+  # screen on herdr, orca, cmux, and zellij stays unknown.
+  local dir="$ROOT/tests/captures/kimi-code-2.3.2" caps f want box bar usage
+  for caps in "$CAPS_STYLED" "$CAPS_STYLED_NOID" "$CAPS_PLAIN"; do
+    for f in idle:empty busy:empty delivered:empty typed:pending newline:pending; do
+      want=${f#*:}
+      f=${f%%:*}
+      assert_screen "kimi 2.3.2 $f cursorless" "$want" "$caps" "$(cat "$dir/$f.pane")"
+    done
+  done
+  box=$'╭────────────────────────╮\n│ >                      │\n╰────────────────────────╯'
+  bar=' Never Ask  K3.1 Pro thinking: high  …/ws  main'
+  usage='                  context: 3% (26.4k/1M)'
+  assert_screen "kimi footer pair" empty "$CAPS_STYLED" "$box"$'\n'"$bar"$'\n'"$usage"
+  # Only the complete pair, in order, is furniture; anything else below the
+  # box keeps it stale.
+  assert_screen "kimi bar without its usage row" unknown "$CAPS_STYLED" "$box"$'\n'"$bar"
+  assert_screen "kimi usage row above its bar" unknown "$CAPS_STYLED" "$box"$'\n'"$usage"$'\n'"$bar"
+  assert_screen "kimi footer over later activity" unknown "$CAPS_STYLED" \
+    "$box"$'\n'"$bar"$'\n'"$usage"$'\n'' ● Working on request'
+  # Without --auto the bar has no permission-mode label.
+  assert_screen "kimi bar without a mode label" empty "$CAPS_STYLED" \
+    "$box"$'\n'' K3.1 Pro thinking: high  …/ws'$'\n'"$usage"
+  assert_screen "a usage row that is not right-aligned" unknown "$CAPS_STYLED" \
+    "$box"$'\n'"$bar"$'\n''context: 3% (26.4k/1M)'
+  pass "matrix: kimi 2.3.2's mode bar and usage row under its box are furniture, and nothing else is"
+}
+
 test_matrix_claude_inside_zellij_ansi_dump() {
   # Real claude captured through `zellij action dump-screen --ansi`
   # (capability established by the audit): `ESC[m` `❯` U+00A0.
@@ -1608,6 +1639,7 @@ test_matrix_grok_titled_bottom_border
 test_matrix_claude_titled_top_rule
 test_matrix_grok_144_approval_titled_bottom_border
 test_matrix_kimi_bordered_shell_glyph_box
+test_matrix_kimi_232_footer_under_the_box
 test_matrix_claude_inside_zellij_ansi_dump
 test_strict_blank_row_divergence
 test_bare_wrap_region_classifies

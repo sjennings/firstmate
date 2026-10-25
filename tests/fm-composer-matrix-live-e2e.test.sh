@@ -170,7 +170,13 @@ check_harness_idle_cursorless() {  # <name> <version> <target>
 # --- 1. Every installed verified harness must reach a proven-empty composer --
 for h in claude codex opencode pi grok kimi muse; do
   if command -v "$h" >/dev/null 2>&1; then
-    check_harness_idle_empty "$h" "$h"
+    # Kimi's bordered box is self-proving, and fm-spawn's delivery check on a
+    # cursorless backend needs it to read empty, not merely not pending.
+    if [ "$h" = kimi ]; then
+      CMX_REQUIRE_CURSORLESS_EMPTY=1 check_harness_idle_empty "$h" "$h"
+    else
+      check_harness_idle_empty "$h" "$h"
+    fi
   else
     note "harness absent, not verified here: $h"
   fi

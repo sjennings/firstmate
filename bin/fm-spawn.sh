@@ -5417,11 +5417,14 @@ kimi_wait_for_ready() {
   return 1
 }
 
+# Kimi echoes a submitted message as a transcript row: `✨ <text>` before 2.3.2,
+# `❯ <text>` from 2.3.2.
 kimi_delivery_is_confirmed() { # <plain-pane-capture>
   local pane=$1
   kimi_composer_is_empty || return 1
   if { printf '%s\n' "$pane" | grep -Fq '✨' &&
     printf '%s\n' "$pane" | grep -Fq 'Read the brief at'; } ||
+    printf '%s\n' "$pane" | grep -Eq '^[[:space:]]*❯ Read the brief at([[:space:]]|$)' ||
     printf '%s\n' "$pane" |
     grep -qiE 'context:[[:space:]]*(0\.[0-9]*[1-9][0-9]*|[1-9][0-9]*([.][0-9]+)?)[[:space:]]*%'; then
     return 0
@@ -7712,7 +7715,10 @@ if [ "$HARNESS" = kimi ]; then
   KIMI_POINTER="Read the brief at $BRIEF_REAL and follow it exactly."
   KIMI_SUBMIT_RETRIES=${FM_KIMI_SUBMIT_RETRIES:-3}
   KIMI_SUBMIT_SLEEP=${FM_KIMI_SUBMIT_SLEEP:-${FM_KIMI_POLL_INTERVAL:-0.5}}
-  KIMI_SUBMIT_SETTLE=${FM_KIMI_SUBMIT_SETTLE:-0}
+  # Kimi's editor turns an Enter arriving within 120ms of a typed burst into
+  # a newline instead of a submit (PASTE_ENTER_SUPPRESS_WINDOW_MS, measured
+  # live on kimi 2.3.2), so the first Enter must wait past that window.
+  KIMI_SUBMIT_SETTLE=${FM_KIMI_SUBMIT_SETTLE:-0.3}
   if ! KIMI_SUBMIT_VERDICT=$(fm_backend_send_text_submit \
     "$BACKEND" "$T" "$KIMI_POINTER" "$KIMI_SUBMIT_RETRIES" \
     "$KIMI_SUBMIT_SLEEP" "$KIMI_SUBMIT_SETTLE" "$W"); then

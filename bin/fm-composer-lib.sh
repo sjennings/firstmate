@@ -1530,6 +1530,25 @@ _fm_composer_row_is_cortex_status() {  # <trimmed-row>
   return 1
 }
 
+# _fm_composer_kimi_footer_at: 0 when rows <row> and <row>+1 of <plain> are Kimi
+# Code's two-row footer, drawn directly under its bordered `│ > │` composer at
+# every width (verified kimi 2.3.2 at 60 to 220 columns): a status bar
+# (`Never Ask  K3.1 Pro thinking: high  …`, with no mode label without
+# --auto), then a right-aligned `context: 3% (26.4k/1M)` usage row. Without
+# this, the cursorless staleness probe reads the bar as a lower live shape and
+# every Kimi screen on herdr, orca, cmux, and zellij classifies `unknown`. The
+# bar's wording varies with mode, model, and width, so the usage row carries
+# the proof: it must be indented and exact, and the bar must be one non-edge
+# row directly above it.
+_fm_composer_kimi_footer_at() {  # <plain-screen> <row>
+  local plain=$1 row=$2 bar usage
+  bar=$(_fm_composer_screen_row "$row" "$plain")
+  fm_composer_normalize_trim_var bar
+  [ -n "$bar" ] && ! fm_composer_row_has_edge "$bar" || return 1
+  usage=$(_fm_composer_screen_row "$((row + 1))" "$plain")
+  [[ $usage =~ ^[[:space:]]{2,}context:\ [0-9]+(\.[0-9]+)?%(\ \([0-9.]+[kKmM]?/[0-9.]+[kKmM]?\))?[[:space:]]*$ ]]
+}
+
 # _fm_composer_row_is_braille_furniture: 0 when the row is non-blank and its
 # non-whitespace content is entirely braille cells (fm_composer_strip_braille
 # above) - an animation row that never counts as typed content and bounds a
@@ -2072,6 +2091,9 @@ _fm_composer_select_cursorless() {
     next=$((boundary + 1))
     if [ "$footer" = 1 ] && [ "$FM_COMPOSER_FOOTER_AFTER" = "$boundary" ]; then
       next=$((FM_COMPOSER_FOOTER_LAST + 1))
+    fi
+    if [ "$FM_COMPOSER_SELECTED_KIND" = box ] && _fm_composer_kimi_footer_at "$plain" "$next"; then
+      next=$((next + 2))
     fi
     raw=$(_fm_composer_screen_row "$next" "$plain")
     trimmed=$raw

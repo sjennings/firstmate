@@ -88,6 +88,14 @@ fake_screen() {
     delivered)
       printf '✨ Read the brief at %s and follow it exactly.\ncontext: 1%% (2k/256k)\n╭────────────────────────────────╮\n│ >                              │\n╰────────────────────────────────╯\n' "$FM_FAKE_BRIEF_REAL"
       ;;
+    pointer-newline)
+      printf '╭────────────────────────────────╮\n│ > Read the brief and follow it │\n│                                │\n╰────────────────────────────────╯\n Never Ask  K3.1 Pro thinking: high\n            context: 0%% (0/1M)\n'
+      ;;
+    delivered-232)
+      # Kimi 2.3.2 echoes with `❯`, and context stays 0% until the model's
+      # first step (tests/captures/kimi-code-2.3.2/README.md).
+      printf ' ❯ Read the brief at\n   %s and follow it exactly.\n╭────────────────────────────────╮\n│ >                              │\n╰────────────────────────────────╯\n Never Ask  K3.1 Pro thinking: high\n            context: 0%% (0/1M)\n' "$FM_FAKE_BRIEF_REAL"
+      ;;
     *)
       printf 'shell starting\n$ \n'
       ;;
@@ -99,10 +107,14 @@ fake_history() {
     printf '╭─ Trust this folder? ─╮\n│ ↑↓ navigate · Enter select · Esc exit │\n│ ❯ Trust this folder │\n│   Don'"'"'t trust │\n╰──────────────────────╯\n'
   fi
 }
+fake_now_ms() {
+  python3 -c 'import time; print(int(time.time() * 1000))'
+}
 fake_cursor_y() {
   case "$state" in
     pointer-typed) printf '3\n' ;;
-    ready|delivered) printf '3\n' ;;
+    pointer-newline) printf '4\n' ;;
+    ready|delivered|delivered-232) printf '3\n' ;;
     *) printf '1\n' ;;
   esac
 }
@@ -144,6 +156,7 @@ case "${1:-}" in
           ;;
         *)
           printf '%s\n' "$literal" >> "$FM_FAKE_POINTER_LOG"
+          fake_now_ms > "$FM_FAKE_KIMI_STATE.typed-at"
           case "$state" in
             trust|trust-wrapped|trust-partial|trust-decoy|trust-230|trust-230-rootmcp|trust-230-kimimcp|trust-230-small|trust-230-paged|booting|banner-only|banner-first|blank-frame) ;;
             *) printf 'pointer-typed\n' > "$FM_FAKE_KIMI_STATE" ;;
@@ -195,11 +208,18 @@ case "${1:-}" in
           trust-230-small)
             printf 'enter\n' >> "$FM_FAKE_KIMI_TRUST_ENTER_LOG"
             ;;
-          ready|delivered)
+          ready|delivered|delivered-232)
             printf 'enter\n' >> "$FM_FAKE_KIMI_STRAY_ENTER_LOG"
             ;;
-          pointer-typed)
-            if [ "${FM_FAKE_KIMI_DELIVERY:-yes}" = yes ]; then
+          pointer-typed|pointer-newline)
+            # Kimi 2.3.2 inserts a newline for an Enter within
+            # PASTE_ENTER_SUPPRESS_WINDOW_MS (120) of a typed burst.
+            if [ "${FM_FAKE_KIMI_PASTE_BURST:-no}" = yes ] \
+               && [ $(( $(fake_now_ms) - $(cat "$FM_FAKE_KIMI_STATE.typed-at") )) -le 120 ]; then
+              printf 'pointer-newline\n' > "$FM_FAKE_KIMI_STATE"
+            elif [ "${FM_FAKE_KIMI_PASTE_BURST:-no}" = yes ]; then
+              printf 'delivered-232\n' > "$FM_FAKE_KIMI_STATE"
+            elif [ "${FM_FAKE_KIMI_DELIVERY:-yes}" = yes ]; then
               if [ "${FM_FAKE_KIMI_SWALLOW_FIRST:-no}" = yes ] \
                  && [ ! -f "$FM_FAKE_KIMI_SWALLOWED" ]; then
                 : > "$FM_FAKE_KIMI_SWALLOWED"
@@ -310,6 +330,7 @@ run_spawn() {
     FM_FAKE_TMUX_VISIBLE_FAILS="${FM_FAKE_TMUX_VISIBLE_FAILS:-no}" \
     FM_FAKE_KIMI_SWALLOWED="$case_dir/kimi.swallowed" \
     FM_FAKE_KIMI_SWALLOW_FIRST="${FM_FAKE_KIMI_SWALLOW_FIRST:-no}" \
+    FM_FAKE_KIMI_PASTE_BURST="${FM_FAKE_KIMI_PASTE_BURST:-no}" \
     FM_FAKE_TMUX_CALL_LOG="$case_dir/tmux-calls.log" \
     FM_FAKE_KIMI_CAPTURES="$ROOT/tests/captures/kimi-code-2.3.0" \
     FM_FAKE_MCP_MARKER_LOG="$case_dir/marker.log" \
@@ -757,6 +778,22 @@ test_kimi_unconfirmed_delivery_fails_loudly() {
   assert_grep 'failed: kimi brief pointer delivery was not confirmed' <(sed -E 's/ \[at=[0-9]+\]//' "$HOME_DIR/state/$id.status") \
     "unconfirmed kimi delivery did not leave a supervisor-visible failure"
   pass "fm-spawn: kimi treats a silent pointer drop as a failed spawn"
+}
+
+test_kimi_232_enter_waits_out_the_paste_window() {
+  local id rec out rc
+  id=kimi-232-paste-b1
+  rec=$(make_spawn_case paste-232 "$id")
+  read_spawn_record "$rec"
+  rc=0
+  out=$(FM_FAKE_KIMI_PASTE_BURST=yes run_spawn \
+    "$CASE_DIR" "$HOME_DIR" "$PROJ_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$id") || rc=$?
+  expect_code 0 "$rc" "a Kimi 2.3.2 pointer should submit once Enter waits out the paste window"
+  assert_contains "$out" "spawned $id harness=kimi" "Kimi 2.3.2 spawn did not confirm its delivery"
+  [ "$(cat "$CASE_DIR/kimi.state")" = delivered-232 ] \
+    || fail "the brief pointer was left in the composer instead of submitted"
+  [ ! -s "$CASE_DIR/stray-enter.log" ] || fail "Enter was resent after the pointer had already submitted"
+  pass "fm-spawn: a Kimi 2.3.2 pointer submits past the paste window and its \`❯\` echo confirms delivery"
 }
 
 test_kimi_readiness_gate_precedes_pointer() {
@@ -1269,6 +1306,7 @@ test_kimi_teardown_removes_pointer_and_registry_token
 test_kimi_falls_back_to_expanded_home_binary
 test_kimi_missing_binary_refuses_before_pane_creation
 test_kimi_unconfirmed_delivery_fails_loudly
+test_kimi_232_enter_waits_out_the_paste_window
 test_kimi_readiness_gate_precedes_pointer
 test_kimi_fresh_worktree_trust_is_answered_and_verified
 test_kimi_swallowed_trust_enter_is_retried_until_the_dialog_clears

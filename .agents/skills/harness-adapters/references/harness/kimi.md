@@ -2,6 +2,7 @@
 
 Verified on 2026-09-17 with Kimi Code CLI 2.0.0.
 The folder prompt was recorded again on 2026-10-23 with Kimi Code CLI 2.3.0 and 2.3.1, which reworded it; `tests/fm-kimi-trust-prompt-live-e2e.test.sh` refreshes that evidence against the installed binary.
+Pointer delivery and the composer footer were re-verified on 2026-10-25 with Kimi Code CLI 2.3.2 and `kimi-code/k3.1-pro`; `tests/captures/kimi-code-2.3.2/README.md` records the screens.
 
 ## Operating facts
 
@@ -18,12 +19,12 @@ The folder prompt was recorded again on 2026-10-23 with Kimi Code CLI 2.3.0 and 
 | Trust dialog | A fresh worktree shows `Trust this folder?` with the affirmative option pre-selected; spawn reads the visible pane, recognizes the complete dialog (its title, both navigation-hint tokens `↑↓ navigate` and `Enter select` - matched separately so a hint wrapped in a narrow pane still counts - and one recorded option pair: `❯ Trust this folder` with `Don't trust` on 2.0.0, `❯ Trust and continue` with `Exit` on 2.3.0), sends Enter on every poll the complete dialog is still there, verifies that a later visible-pane capture no longer contains it, and then continues the ordinary readiness gate. A 2.3.0 prompt that announces project MCP servers (`Start N MCP server(s) automatically` over `Config: <file>`) is never answered, because Enter starts those servers before any login and Kimi's per-folder trust is not a consent decision that covers them; the launch fails naming that reason, and the operator removes the servers from the file the `Config:` line names. A prompt that pages its disclosure (`←→ page · N / M`) receives no key either, because the announcement can sit on a page that is not shown, and a prompt collapsed for a short terminal is never the complete dialog. `bin/fm-kimi-trust-lib.sh` owns the predicates and `tests/captures/kimi-code-2.3.0/README.md` the recorded wordings. Trust is never pre-registered in `config.toml`; the dialog is answered live. |
 | Slash submission | One Enter submits, with no popup swallow or settle hazard. |
 | Environment marker | None; identity comes from process ancestry command name `kimi`, which `../../../bin/fm-harness.sh` keeps a retained foreign marker from overriding. |
-| Composer | Bordered box with a bare `>` prompt glyph and no observed ghost or placeholder text. |
+| Composer | Bordered box with a bare `>` prompt glyph and no observed ghost or placeholder text, over a two-row footer (a status bar, then a right-aligned `context:` usage row) that `bin/fm-composer-lib.sh` reads as Kimi's furniture on cursorless backends. |
 | Effort | `kimi provider list --json` exposes per-model `supportEfforts` values `low`, `high`, and `max` plus a `defaultEffort`; the launch flag and mapping remain unverified, so spawn records and omits requested effort per `references/common/model-and-effort.md`. |
 
 ## Readiness-gated start
 
-`../../../bin/fm-spawn.sh` launches Kimi bare, handles the complete trust dialog when it appears in a wording `bin/fm-kimi-trust-lib.sh` recognizes, waits for the composer box or `Welcome to Kimi Code!`, sends only `Read the brief at <absolute-path> and follow it exactly.`, and requires a cleared composer plus either the echoed `✨` submission or nonzero context before accepting delivery.
+`../../../bin/fm-spawn.sh` launches Kimi bare, handles the complete trust dialog when it appears in a wording `bin/fm-kimi-trust-lib.sh` recognizes, waits for the composer box or `Welcome to Kimi Code!`, sends only `Read the brief at <absolute-path> and follow it exactly.`, and requires a cleared composer plus either the echoed submission (`✨` before 2.3.2, a `❯ Read the brief at` row from 2.3.2) or nonzero context before accepting delivery.
 Kimi 2.3.0 reads a root `.mcp.json` at the git worktree root as a project MCP declaration in addition to `.kimi-code/mcp.json`, while its documentation names only the latter; the prompt names whichever file declared the servers on its `Config:` line, which is why the refusal reads the prompt rather than any file.
 Every trust predicate reads `fm_backend_visible_capture` - the viewport with no scrollback - never the 120-line history read the delivery gate uses: the dialog is a TUI frame, and a history-backed capture would keep reporting it after Kimi redrew past it, storming Enter into a live composer and then failing an already trusted spawn.
 `FM_BACKEND_VISIBLE_CAPTURE` in `bin/fm-backend.sh` is the authoritative capability list; [`docs/rex-backend.md`](../../../../../docs/rex-backend.md#current-operation-and-safety) explains Rex's derived viewport.
@@ -34,7 +35,7 @@ The path must be absolute because the instructions live outside the task worktre
 
 Sending before readiness was reproduced as a silent drop with zero exit status, an empty composer, `context: 0%`, no echoed user message, and a healthy-looking idle pane.
 The startup input-readiness window is the established cause; the banner is not.
-An early Enter can expand the composer to multiple content rows, leaving pointer text on the first row and the cursor on an empty later row.
+An Enter within 120ms of typed text expands the composer to multiple content rows instead of submitting, leaving pointer text on the first rows and the cursor on an empty later row: Kimi's editor treats a fast burst of characters as a paste and suppresses submission for that window (`PASTE_ENTER_SUPPRESS_WINDOW_MS`, read from and measured live on 2.3.2), so spawn waits past it before the first Enter.
 The shared tmux reader therefore locates the complete bordered composer and treats real text on any content row as positive evidence that submission remains pending.
 No rendering signal proves Kimi will accept input during this window, so delivery retries Enter through the shared submit core and retains the postcondition verification rather than relaxing readiness.
 
