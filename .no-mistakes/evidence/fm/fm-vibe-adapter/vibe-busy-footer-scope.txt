@@ -1,0 +1,5 @@
+harness=vibe vibe footer -> busy
+harness=claude vibe footer -> busy
+harness=codex vibe footer -> not-busy
+harness=<none> vibe footer -> not-busy
+note: claude arm matched this footer at base 127f0f30 too (pre-existing claude 'esc to interrupt' arm); shared default (<none>) and codex do not match

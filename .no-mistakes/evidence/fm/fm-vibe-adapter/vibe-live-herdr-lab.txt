@@ -1,0 +1,10 @@
+lab session=fm-lab-vibe-adapter-25710-11536 pane=w1:p1
+ok - shell-only pane recorded harness=vibe -> no-agent
+ok - real Vibe replied HERDR_VIBE_OK inside the lab pane
+unknown option: w1:p1
+  herdr agent get: "agent_not_found"
+ok - running Vibe, recorded harness=vibe -> live
+  same pane recorded harness=claude -> no-agent (Herdr catalog semantics unchanged for other harnesses)
+ok - non-Vibe recorded harness keeps agent_not_found -> no-agent
+ok - after /exit, recorded harness=vibe -> no-agent
+lab teardown ok (default-session tripwire unchanged)

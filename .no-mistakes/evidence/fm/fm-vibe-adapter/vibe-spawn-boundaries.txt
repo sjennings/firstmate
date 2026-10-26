@@ -1,0 +1,42 @@
+=== accept: configured alias model on tmux
+$ fm-spawn.sh vb1 <proj> --scout --harness vibe --model zai-glm-5-3-flash --backend tmux
+exit=0
+launch command:
+export COMPACT_ADVISER_DISABLE=1; export FM_TASK_INBOX='<lab>/h1/state/vb1.inbox'; '/Users/wire2k/.no-mistakes/worktrees/306eb1dde12e/01M5WNGRFQ19GDZHXRGYRZ269J/bin/fm-git-strip-ai-trailers.sh' env-file '<lab>/h1/state/vb1.git-hooks' '/tmp/fm-vb1+923d5b59371ef968c00bc5a1276ffb4563820b9e885a6c396bb15945ac253416/git-config.s1793037967.74018.1013.sh' && . '/tmp/fm-vb1+923d5b59371ef968c00bc5a1276ffb4563820b9e885a6c396bb15945ac253416/git-config.s1793037967.74018.1013.sh' || return 1 2>/dev/null || exit 1; VIBE_SESSION_LOGGING__SAVE_DIR='<lab>/h1/state/vb1.vibe-sessions/s1793037967.74018.1013' env -
+
+=== accept: no model (Vibe default)
+$ fm-spawn.sh vb2 <proj> --scout --harness vibe --backend tmux
+exit=0
+launch command:
+export COMPACT_ADVISER_DISABLE=1; export FM_TASK_INBOX='<lab>/h2/state/vb2.inbox'; '/Users/wire2k/.no-mistakes/worktrees/306eb1dde12e/01M5WNGRFQ19GDZHXRGYRZ269J/bin/fm-git-strip-ai-trailers.sh' env-file '<lab>/h2/state/vb2.git-hooks' '/tmp/fm-vb2+3b3b268d4a4ddd1132d8935d28c580a2871fc5d025fb19fe106062adf9bb6c30/git-config.s1793037971.75031.14258.sh' && . '/tmp/fm-vb2+3b3b268d4a4ddd1132d8935d28c580a2871fc5d025fb19fe106062adf9bb6c30/git-config.s1793037971.75031.14258.sh' || return 1 2>/dev/null || exit 1; VIBE_SESSION_LOGGING__SAVE_DIR='<lab>/h2/state/vb2.vibe-sessions/s1793037971.75031.14258' en
+
+=== refuse: unknown model pin (no silent fallback)
+$ fm-spawn.sh vb3 <proj> --scout --harness vibe --model mistral-does-not-exist --backend tmux
+exit=1
+error: Vibe model pin could not be verified with its installed Python config loader; refusing fallback
+
+=== refuse: provider-qualified name from another tool
+$ fm-spawn.sh vb4 <proj> --scout --harness vibe --model mistral/glm-5.3 --backend tmux
+exit=1
+error: Vibe model pin could not be verified with its installed Python config loader; refusing fallback
+
+=== refuse: explicit non-default effort
+$ fm-spawn.sh vb5 <proj> --scout --harness vibe --model zai-glm-5-3-flash --effort high --backend tmux
+exit=1
+error: vibe effort pinning is unsupported; omit --effort to use Vibe's configured reasoning level
+
+=== accept: effort default
+$ fm-spawn.sh vb6 <proj> --scout --harness vibe --effort default --backend tmux
+exit=1
+error: --effort must be one of low, medium, high, xhigh, max, ultra
+
+=== refuse: unverified backend
+$ fm-spawn.sh vb7 <proj> --scout --harness vibe --backend zellij
+exit=1
+error: vibe is verified on the herdr and tmux backends only; select backend herdr or tmux
+
+=== refuse: unverified vibe version 3.0.3
+$ fm-spawn.sh vb8 <proj> --scout --harness vibe --backend tmux
+exit=1
+error: vibe requires live adapter verification for this version; verified version is 3.0.2
+

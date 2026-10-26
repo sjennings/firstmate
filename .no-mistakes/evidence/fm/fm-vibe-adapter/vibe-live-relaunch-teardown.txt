@@ -1,0 +1,18 @@
+== gen1 reply seen; exiting
+== after relaunch: generation dirs in state/vibe-td.vibe-sessions
+s1793038008.81257.20124
+s1793038022.85487.12752
+generations=2
+session journal files=32
+read-only entries (no owner write)=36
+== plain rm -rf on a copy (proves the read-only cache needs chmod):
+rm: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/vibe-td.5PTIKm/copy/s1793038022.85487.12752/plugins/packages/99/99661bff0021b9aaa31a2f8446f4388ef82bad88e8c8e2298879981b9f0459b1/plugin.json: Permission denied
+rm: /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/vibe-td.5PTIKm/copy/s1793038022.85487.12752/plugins/packages/99/99661bff0021b9aaa31a2f8446f4388ef82bad88e8c8e2298879981b9f0459b1/skills/create-plugin/SKILL.md: Permission denied
+plain rm left copy behind
+== fm-teardown.sh vibe-td --force
+teardown exit=0
+teardown: reaping leaked worktree process(es) for vibe-td: 82400
+teardown: force-killing leaked worktree process(es) for vibe-td: 82400
+teardown vibe-td complete (window firstmate:fm-vibe-td, worktree <lab>/worker-project)
+Backlog: vibe-td just finished (this home keeps no markdown backlog at <lab>/home/data/backlog.md). Update <lab>/home/data/backlog.md - move vibe-td to Done, keep Done to the 10 most recent, then re-scan Queued and dispatch only work whose blockers are gone and date is due.
+PASS: state/vibe-td.vibe-sessions removed by teardown

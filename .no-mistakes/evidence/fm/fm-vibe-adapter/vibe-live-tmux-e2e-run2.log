@@ -1,0 +1,2 @@
+ok - vibe 3.0.2: real spawn, ancestry, busy/idle, draft, steer, interrupt, exit and replacement reply (model zai-glm-5-3-flash; effort unsupported)
+env -u NO_MISTAKES_GATE -u FM_GATE_REFUSE_BYPASS FM_VIBE_SIGNALS_LIVE=1 bash   3.79s user 4.96s system 15% cpu 55.479 total
