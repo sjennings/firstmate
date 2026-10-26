@@ -1,0 +1,20 @@
+== [HEAD fed8c837] pane capture (foreground: sleep) ==
+──────────────────────────────────────────────────────────────────────────────── accept edits · auto-approve ─
+>
+
+
+────────────────────────────────────────────────────────────────────────────────
+/project [PID 123] 15k/800k tokens (2%%)
+
+identity probe: <not a shape owner>
+composer_state: unknown
+== [pre-fix ac54e629] pane capture (foreground: sleep) ==
+──────────────────────────────────────────────────────────────────────────────── accept edits · auto-approve ─
+>
+
+
+────────────────────────────────────────────────────────────────────────────────
+/project [PID 123] 15k/800k tokens (2%%)
+
+identity probe: <not a shape owner>
+composer_state: empty

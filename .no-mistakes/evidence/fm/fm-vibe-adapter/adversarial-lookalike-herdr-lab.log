@@ -1,0 +1,29 @@
+##### HEAD fed8c837
+lab session: fm-lab-vibe-ident-43748-5152
+== pane read (fm-lab-vibe-ident-43748-5152:w1:p1) ==
+──────────────────────────────────────────────────────────────────────────────── accept edits · auto-approve ─
+> 
+
+
+────────────────────────────────────────────────────────────────────────────────
+/project [PID 123] 15k/800k tokens (2pct)process-info foreground: ["sleep"]
+no recorded meta            -> unknown
+recorded harness=claude     -> unknown
+recorded harness=vibe       -> empty
+vibe meta for other endpoint -> unknown
+teardown rc=0
+
+##### pre-fix ac54e629
+lab session: fm-lab-vibe-ident-44646-3907
+== pane read (fm-lab-vibe-ident-44646-3907:w1:p1) ==
+──────────────────────────────────────────────────────────────────────────────── accept edits · auto-approve ─
+> 
+
+
+────────────────────────────────────────────────────────────────────────────────
+/project [PID 123] 15k/800k tokens (2pct)process-info foreground: ["sleep"]
+no recorded meta            -> empty
+recorded harness=claude     -> empty
+recorded harness=vibe       -> empty
+vibe meta for other endpoint -> empty
+teardown rc=0

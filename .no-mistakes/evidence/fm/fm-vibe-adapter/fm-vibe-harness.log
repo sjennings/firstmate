@@ -1,0 +1,14 @@
+ok - anchored Vibe identity and liveness
+ok - worker-only Vibe lifecycle
+ok - Vibe ruled composer, pending draft, redraw and delivery busy shape
+ok - Vibe busy footer stays in its own delivery arm
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.192s
+
+OK
+ok - Vibe semantic session state and journal updates
+ok - recorded Vibe liveness, empty handoff, uncertain reads and unchanged shared Herdr semantics
+ok - Herdr composer capability bound to exact recorded Vibe endpoint
+ok - Vibe launch envelope, journal generation and unsupported effort/secondmate/version refusals
+bash tests/fm-vibe-harness.test.sh  1.24s user 1.52s system 43% cpu 6.335 total
