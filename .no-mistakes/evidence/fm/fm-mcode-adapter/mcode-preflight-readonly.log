@@ -1,0 +1,16 @@
+=== missing permissionMode -> preflight
+error: MiniMax Code is not in Full access (permissionMode is 'auto (unset)' in /var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/tmp.aCUJLTPEzE/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+exit=1
+=== quoted bypassPermissions + comment -> preflight (firstmate only, no mcode)
+/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/tmp.aCUJLTPEzE
+exit=0
+config byte-identical after preflight
+=== mcode itself started bare on the same dir (no firstmate)
+5c5,58
+<       MiniMax-M3.1-Flash: {}
+---
+>       MiniMax-M3.1-Flash: { name: M3.1-Flash, attachment: true, reasoning: true, temperature: true, tool_call: true, limit: { context: 512000, output: 128000 }, modalities: { input: [ text, image, video ], output: [ text ] }, options: { reasoningSummary: auto }, variants: { none-thinking: { thinking: { type: disabled } }, thinking: { thinking: { type: adaptive } } }, thinking_config: { mode: forced_on }, capabilities: { files_api_upload_endpoint: /v1/files/upload, max_attachments_count: 4, max_image_bytes_inline: 10485760, max_request_body_bytes: 67108864, max_video_bytes_inline: 52428800, support_files_api: true }, contextWindowOptions: [ 512000, 1000000 ], contextWindowOptionHints: { "1000000": higher_usage }, thinking: { effortOptions: [ default, low, medium, high, xhigh, max ], defaultEffort: default } }
+>       MiniMax-M3:
+>         name: M3
+>         attachment: true
+>         reasoning: true

@@ -1,0 +1,34 @@
+=== permissionMode: auto
+error: MiniMax Code is not in Full access (permissionMode is 'auto' in /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-mcode-refuse.k4r1Uc/minimax/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+spawn exit=1
+config unchanged
+tmux windows: lab
+no task meta
+=== permissionMode: default
+error: MiniMax Code is not in Full access (permissionMode is 'default' in /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-mcode-refuse.k4r1Uc/minimax/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+spawn exit=1
+config unchanged
+tmux windows: lab
+no task meta
+=== permissionMode: acceptEdits
+error: MiniMax Code is not in Full access (permissionMode is 'acceptEdits' in /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-mcode-refuse.k4r1Uc/minimax/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+spawn exit=1
+config unchanged
+tmux windows: lab
+no task meta
+=== permissionMode: "bypassPermissions" # quoted ok
+error: mcode 0.7.1 did not start processing its brief in window firstmate:fm-refuse (neither a Working title nor its spinner row appeared; the adapter is verified on mcode 0.7.1); inspect window firstmate:fm-refuse
+warning: leaving task refuse's slot claim on /Users/wire2k/.treehouse/project-322b89/1/project in place; the Treehouse project lock is no longer held, so the next spawn's claim replaces it
+spawn exit=1
+CONFIG MODIFIED
+tmux windows: lab
+no task meta
+=== bogus model with Full access
+error: MiniMax Code model 'minimax/MiniMax-Bogus-9' is not configured in /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-mcode-refuse.k4r1Uc/minimax/config.yaml (configured: minimax/MiniMax-M3.1-Flash); mcode would silently run its default model instead. Choose a configured id or omit --model.
+preflight exit=1
+=== relative data dir
+error: the MiniMax Code data directory 'rel/dir' is relative, so the worker would resolve it against its own working directory instead of this one. Set MINIMAX_DATA_DIR to an absolute path, then retry.
+preflight exit=1
+=== secondmate refused
+error: mcode is a verified crewmate/scout adapter only and cannot run a secondmate; it has no primary supervision protocol. Select a harness verified for secondmates.
+spawn exit=1

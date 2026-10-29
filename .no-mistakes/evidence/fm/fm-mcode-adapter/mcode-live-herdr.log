@@ -1,0 +1,11 @@
+FM_TEST_BEGIN 2026-10-29T01:40:26Z tests/fm-mcode-signals-live-e2e.test.sh family=live-harness-optin expected_gate_skip=live-capability
+ok - mcode 0.7.1 [herdr]: spawn brief, Full access, model minimax/MiniMax-M3.1-Flash, identity, and title idle
+ok - mcode 0.7.1 [herdr]: the worker commit carries no attribution
+ok - mcode 0.7.1 [herdr]: real fm-send doorbell read and acknowledged
+ok - mcode 0.7.1 [herdr]: one Escape cancels the turn, keeps the agent, and the title settles
+ok - mcode 0.7.1 [herdr]: /quit exits and prints mcode --session <id>
+ok - mcode 0.7.1 [herdr]: relaunch re-delivers the brief and the worker exits again
+FM_TEST_END 2026-10-29T01:47:39Z tests/fm-mcode-signals-live-e2e.test.sh exit=0 duration_ms=432808 gate_skip=false
+FM_TEST_SUMMARY total=1 failed=0 skipped_gate=0 duration_ms=432896
+FM_TEST_SUMMARY_FAMILY family=live-harness-optin count=1 duration_ms=432808 failed=0
+FM_TEST_SLOWEST rank=1 script=tests/fm-mcode-signals-live-e2e.test.sh duration_ms=432808
