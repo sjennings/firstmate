@@ -1,0 +1,13 @@
+## real fm-spawn --harness mcode against MINIMAX_DATA_DIR with permissionMode: auto (isolated tmux, lab home)
+fm-gate-refuse: gate agent lifecycle permitted only against lab home /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.dCn5qd/fm
+error: MiniMax Code is not in Full access (permissionMode is 'auto' in /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.dCn5qd/mm/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+exit=1
+## task meta present? no
+## tmux server sessions: error connecting to /private/tmp/fml.AhgkhW/tmux-501/default (No such file or directory)
+## config unchanged? yes
+## preflight direct with relative dir:
+error: the MiniMax Code data directory 'rel' is relative, so the worker would resolve it against its own working directory instead of this one. Set MINIMAX_DATA_DIR to an absolute path, then retry.
+exit=1
+## preflight on bogus model with Full access copy:
+error: MiniMax Code model 'minimax/MiniMax-Bogus-9' is not configured in /private/var/folders/qw/fh5wf_hn25x4f712lv79r_480000gn/T/fm-lab.dCn5qd/mm/config.yaml (configured: minimax/MiniMax-M3.1-Flash); mcode would silently run its default model instead. Choose a configured id or omit --model.
+exit=1

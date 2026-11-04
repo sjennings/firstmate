@@ -1,0 +1,21 @@
+$ MINIMAX_DATA_DIR=<auto-mode dir> bin/fm-mcode-config.sh preflight minimax/MiniMax-M3.1-Flash
+error: MiniMax Code is not in Full access (permissionMode is 'auto' in <tmp>/auto/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+exit=1
+$ config unchanged after refusal?
+unchanged (adapter never writes permissionMode)
+
+$ MINIMAX_DATA_DIR=<full-access dir> preflight minimax/MiniMax-M3.1-Flash
+<tmp>/full
+exit=0
+
+$ full-access dir, unknown model minimax/MiniMax-Bogus-9
+error: MiniMax Code model 'minimax/MiniMax-Bogus-9' is not configured in <tmp>/full/config.yaml (configured: minimax/MiniMax-M3.1-Flash); mcode would silently run its default model instead. Choose a configured id or omit --model.
+exit=1
+
+$ relative MINIMAX_DATA_DIR=rel/dir
+error: the MiniMax Code data directory 'rel/dir' is relative, so the worker would resolve it against its own working directory instead of this one. Set MINIMAX_DATA_DIR to an absolute path, then retry.
+exit=1
+
+$ real operator config (read-only) preflight minimax/MiniMax-M3.1-Flash
+/Users/wire2k/.minimax
+exit=0

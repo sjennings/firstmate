@@ -1,0 +1,10 @@
+$ MINIMAX_DATA_DIR=<auto-mode> fm-spawn.sh mc-refuse <proj> --scout --harness mcode --model minimax/MiniMax-M3.1-Flash
+fm-gate-refuse: gate agent lifecycle permitted only against lab home <lab>/fm
+error: MiniMax Code is not in Full access (permissionMode is 'auto' in <lab>/auto/config.yaml), so an unattended worker would stop on its first approval prompt. Run `/permission full` in any mcode session, then retry.
+exit=1
+$ tmux windows in lab after refusal:
+firstmate:zsh
+$ task meta written?
+ls: <lab>/fm/state/mc-refuse.meta: No such file or directory
+$ config still auto?
+permissionMode: auto

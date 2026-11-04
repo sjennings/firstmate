@@ -1,0 +1,7 @@
+ok - mcode 0.7.1 [tmux]: spawn brief, Full access, model minimax/MiniMax-M3.1-Flash, identity, and title idle
+ok - mcode 0.7.1 [tmux]: the worker commit carries no attribution
+ok - mcode 0.7.1 [tmux]: real fm-send doorbell read and acknowledged
+ok - mcode 0.7.1 [tmux]: one Escape cancels the turn, keeps the agent, and the title settles
+ok - mcode 0.7.1 [tmux]: /quit exits and prints mcode --session <id>
+ok - mcode 0.7.1 [tmux]: relaunch re-delivers the brief and the worker exits again
+exit=0
