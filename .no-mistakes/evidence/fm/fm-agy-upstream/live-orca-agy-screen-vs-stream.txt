@@ -1,0 +1,77 @@
+=== fm_backend_orca_screen_capture (rc follows) ===
+  When this task works on Firstmate itself, the repository root `AGENTS.md` (also imported by `CLAUDE.md`) is project
+  content and the supervisor contract for the firstmate managing you: follow this brief instead of that supervisor
+  contract.
+  Project instructions still govern the work wherever they do not conflict with this worker identity, including
+  `CONTRIBUTING.md` and `firstmate-coding-guidelines` for Firstmate changes.
+  If the `firstmate-coding-guidelines` skill name does not resolve in this session, read
+  `/Users/wire2k/.no-mistakes/worktrees/306eb1dde12e/01M6WVD16Y7BFEP0AYE5XAQ94E/.agents/skills/firstmate-coding-guideli
+  nes/SKILL.md`
+  instead.
+  # Task
+  ## Captain's intent
+  Live lab probe of the Orca agy start gate. Reply with the single word OK and stop. Do not edit, create, or delete any
+  files and do not run commands.
+  ## Firstmate spec
+  No work is required beyond replying OK.
+  # Current no-mistakes intent contract
+  This section supersedes every earlier brief instruction about constructing `--intent`, but not later clarifications
+  actually supplied by the captain.
+  Use everything under `## Captain intent authorized for --intent` through the end of this brief, including any nested
+  subheadings but excluding that heading, plus any later words the captain actually supplied as `--intent`; never
+  include Firstmate specification or other mixed Task content.
+  Preserve those words without adding speaker labels or direct address.
+  Firstmate-authored constraints, acceptance criteria, implementation details, decisions, and tradeoffs are
+  specification, not captain intent.
+  The Definition of done's rule that `--intent` must be self-sufficient still governs the string you pass: resolve any
+  report, decision, or PR the intent below refers to into its substance rather than passing the pointer.
+  ## Captain intent authorized for --intent
+  Live lab probe of the Orca agy start gate. Reply with the single word OK and stop. Do not edit, create, or delete any
+  files and do not run commands.
+  OK
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+? for shortcuts                                                                                   Gemini 3.8 Flash · low
+rc=0
+=== fm_backend_orca_capture (stream) ===
+  Never inspect or change any other home's endpoint namespace; this authorization is limited to the exact task paths
+  named by this brief.
+  When this task works on Firstmate itself, the repository root `AGENTS.md` (also imported by `CLAUDE.md`) is project
+  content and the supervisor contract for the firstmate managing you: follow this brief instead of that supervisor
+  contract.
+  Project instructions still govern the work wherever they do not conflict with this worker identity, including
+  `CONTRIBUTING.md` and `firstmate-coding-guidelines` for Firstmate changes.
+  If the `firstmate-coding-guidelines` skill name does not resolve in this session, read
+  `/Users/wire2k/.no-mistakes/worktrees/306eb1dde12e/01M6WVD16Y7BFEP0AYE5XAQ94E/.agents/skills/firstmate-coding-guideli
+  nes/SKILL.md`
+  instead.
+
+  # Task
+  ## Captain's intent
+  Live lab probe of the Orca agy start gate. Reply with the single word OK and stop. Do not edit, create, or delete any
+  files and do not run commands.
+
+  ## Firstmate spec
+  No work is required beyond replying OK.
+
+  # Current no-mistakes intent contract
+  This section supersedes every earlier brief instruction about constructing `--intent`, but not later clarifications
+  actually supplied by the captain.
+  Use everything under `## Captain intent authorized for --intent` through the end of this brief, including any nested
+  subheadings but excluding that heading, plus any later words the captain actually supplied as `--intent`; never
+  include Firstmate specification or other mixed Task content.
+  Preserve those words without adding speaker labels or direct address.
+  Firstmate-authored constraints, acceptance criteria, implementation details, decisions, and tradeoffs are
+  specification, not captain intent.
+  The Definition of done's rule that `--intent` must be self-sufficient still governs the string you pass: resolve any
+  report, decision, or PR the intent below refers to into its substance rather than passing the pointer.
+
+  ## Captain intent authorized for --intent
+  Live lab probe of the Orca agy start gate. Reply with the single word OK and stop. Do not edit, create, or delete any
+  files and do not run commands.
+
+  OK
+
+
+

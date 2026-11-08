@@ -1,0 +1,9 @@
+screen_capture_rc=0
+--- screen read ---
+    /private/v/f/q/f/T/fm-o/h/o/w/p/fm-agyorca1  on   fm-agyorca1                                            ✔
+--- stream read ---
+❯ printf 'echoed brief: explain esc to cancel\n'; sleep 1; clear
+echoed brief: explain esc to cancel
+    /private/v/f/q/f/T/fm-o/h/o/w/p/fm-agyorca1  on   fm-agyorca1                                            ✔
+classify(screen)=unknown agy-regex
+classify(stream)=busy agy-regex

@@ -1,0 +1,18 @@
+# Live: fm-spawn --harness agy --backend orca against an isolated headless Orca 1.4.253 runtime (orca serve, ORCA_USER_DATA_PATH + HOME in a throwaway lab), real agy 1.5.3, gemini-3.8-flash-low
+
+## FIXED (target 35855e14) run 1: rc=0 elapsed=10.07s
+fm-gate-refuse: gate agent lifecycle permitted only against lab home $LAB/fmhome
+warning: $LAB/fmhome/data/agyorca1/launch-brief.md records no ship branch; defaulting to legacy branch fm/agyorca1
+warning: $LAB/fmhome/data/agyorca1/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned agyorca1 harness=agy kind=ship mode=no-mistakes yolo=off window=fm-agyorca1 worktree=$LAB/h/orca/workspaces/proj/fm-agyorca1
+
+## FIXED (target 35855e14) run 2: rc=0 elapsed=9.3s
+fm-gate-refuse: gate agent lifecycle permitted only against lab home $LAB/fmhome
+warning: $LAB/fmhome/data/agyorca2/launch-brief.md records no ship branch; defaulting to legacy branch fm/agyorca2
+warning: $LAB/fmhome/data/agyorca2/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+spawned agyorca2 harness=agy kind=ship mode=no-mistakes yolo=off window=fm-agyorca2 worktree=$LAB/h/orca/workspaces/proj/fm-agyorca2
+
+## BASELINE (base 470757ed, pre-fix) same lab: rc=1 elapsed=56.62s
+warning: $LAB/fmhome/data/agyorca0/launch-brief.md records no ship branch; defaulting to legacy branch fm/agyorca0
+warning: $LAB/fmhome/data/agyorca0/launch-brief.md records no delivery contract line (scaffolded before ship briefs recorded one); launching on the explicit --mode no-mistakes - confirm its definition of done matches
+error: agy did not start processing its brief in the pre-trusted worktree in window term_d4849c97-38b0-4646-bd42-3f1e8fbc8fab; inspect window term_d4849c97-38b0-4646-bd42-3f1e8fbc8fab
